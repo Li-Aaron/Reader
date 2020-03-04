@@ -500,6 +500,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 break;
             }
         }
+		else if ('H' == wParam)
+		{
+			if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+			{
+				OnHideBorder(hWnd);
+			}
+		}
         else if (VK_F12 == wParam)
         {
             // show or hiden border
@@ -596,6 +603,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             OnPageUp(hWnd);
         }
         break;
+	case WM_XBUTTONDOWN:
+		// mouse 4
+		if (XBUTTON1 == wParam >> 16) {
+			OnPageUp(hWnd);
+		}
+		// mouse 5
+		else if (XBUTTON2 == wParam >> 16) {
+			OnPageDown(hWnd);
+		}
+		break;
     case WM_NCLBUTTONDOWN:
         if (_hMouseHook)
         {
