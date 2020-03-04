@@ -4,13 +4,12 @@
 #include <string.h>
 #include <shlwapi.h>
 
-#pragma comment(lib, "shlwapi.lib")
 
-extern UINT GetAppVersion(void);
+extern UINT GetCacheVersion(void);
 
 Cache::Cache(TCHAR* file)
 {
-    GetModuleFileName(NULL, m_file_name, MAX_PATH-1);
+    GetModuleFileName(NULL, m_file_name, sizeof(TCHAR)*(MAX_PATH-1));
     for (int i=_tcslen(m_file_name)-1; i>=0; i--)
     {
         if (m_file_name[i] == _T('\\'))
@@ -47,7 +46,7 @@ bool Cache::init()
     {
         if (read())
         {
-            if (get_header()->version != GetAppVersion())
+            if (get_header()->version != GetCacheVersion())
             {
                 // remove old cache data
                 DeleteFile(m_file_name);
@@ -191,26 +190,13 @@ bool Cache::delete_item(int item_id)
     return true;
 }
 
-bool Cache::reset_page_info(int item_id)
-{
-    item_t* item = get_item(item_id);
-    if (!item)
-        return false;
-
-    memset(&item->page_info, 0, sizeof(min_stack_t));
-    return true;
-}
-
-bool Cache::reset_page_info()
+bool Cache::delete_all_item(void)
 {
     header_t* header = get_header();
-    item_t* item = NULL;
 
-    for (int i=0; i<header->size; i++)
-    {
-        item = get_item(i);
-        memset(&item->page_info, 0, sizeof(min_stack_t));
-    }
+    header->size = 0;
+    header->item_id = -1;
+    m_size = sizeof(header_t);
     return true;
 }
 
@@ -257,11 +243,22 @@ header_t* Cache::default_header()
     header->rect.bottom = header->rect.top + height;
 
     // default bk color
-    header->bk_color = 0x00ffffff;  // White
+    header->bg_color = 0x00ffffff;  // White
+    header->alpha = 0xff;
 
     header->line_gap = 5;
     header->internal_border = 0;
-    header->version = GetAppVersion();
+    header->version = GetCacheVersion();
+
+    // default hotkey
+    header->hk_show_1 = 0;
+    header->hk_show_2 = MOD_ALT;
+    header->hk_show_3 = 'H';
+    header->wheel_speed = 1;
+    header->page_mode = 1;
+    header->uElapse = 3000;
+
+    header->bg_image.enable = 0;
 
     return header;
 }
