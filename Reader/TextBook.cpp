@@ -1,6 +1,6 @@
-#include "stdafx.h"
-#include "TextBook.h"
+Ôªø#include "TextBook.h"
 #include "types.h"
+#include <regex>
 
 
 wchar_t TextBook::m_ValidChapter[] =
@@ -8,12 +8,13 @@ wchar_t TextBook::m_ValidChapter[] =
     _T(' '), _T('\t'),
     _T('0'), _T('1'), _T('2'), _T('3'), _T('4'),
     _T('5'), _T('6'), _T('7'), _T('8'), _T('9'),
-    _T('¡„'), _T('“ª'), _T('∂˛'), _T('»˝'), _T('Àƒ'),
-    _T('ŒÂ'), _T('¡˘'), _T('∆ﬂ'), _T('∞À'), _T('æ≈'),
-    _T(' Æ'), _T('∞Ÿ'), _T('«ß'), _T('ÕÚ'), _T('“⁄'),
-    _T('“º'), _T('∑°'), _T('»˛'), _T('À¡'),
-    _T('ŒÈ'), _T('¬Ω'), _T('∆‚'), _T('∞∆'), _T('æ¡'),
-    _T(' ∞'), _T('∞€'), _T('«™'), _T('»f'), _T('É|'),
+    _T('Èõ∂'), _T('‰∏Ä'), _T('‰∫å'), _T('‰∏â'), _T('Âõõ'),
+    _T('‰∫î'), _T('ÂÖ≠'), _T('‰∏É'), _T('ÂÖ´'), _T('‰πù'),
+    _T('ÂçÅ'), _T('Áôæ'), _T('ÂçÉ'), _T('‰∏á'), _T('‰∫ø'),
+    _T('Â£π'), _T('Ë¥∞'), _T('ÂèÅ'), _T('ËÇÜ'),
+    _T('‰ºç'), _T('ÈôÜ'), _T('Êüí'), _T('Êçå'), _T('Áéñ'),
+    _T('Êãæ'), _T('‰Ω∞'), _T('‰ªü'), _T('Ëê¨'), _T('ÂÑÑ'),
+    _T('‰∏§'),
     0x3000
 };
 
@@ -31,9 +32,40 @@ book_type_t TextBook::GetBookType(void)
     return book_text;
 }
 
-bool TextBook::ParserBook(void)
+BOOL TextBook::SaveBook(HWND hWnd)
 {
-    bool ret = false;
+    FILE *fp = NULL;
+
+    fp = _tfopen(m_fileName, _T("wb"));
+    if (!fp)
+        return FALSE;
+
+    fwrite("\xff\xfe", 2, 1, fp);
+    fwrite(m_Text, sizeof(wchar_t), m_Length, fp);
+    fclose(fp);
+
+    return TRUE;
+}
+
+BOOL TextBook::UpdateChapters(int offset)
+{
+    chapters_t::iterator itor;
+    
+    for (itor=m_Chapters.begin(); itor!=m_Chapters.end(); itor++)
+    {
+        if (itor->index > m_Index)
+        {
+            itor->index += offset;
+            if (itor->index < 0)
+                itor->index = 0;
+        }
+    }
+    return TRUE;
+}
+
+BOOL TextBook::ParserBook(HWND hWnd)
+{
+    BOOL ret = FALSE;
 
     if (!ReadBook())
         goto end;
@@ -41,7 +73,7 @@ bool TextBook::ParserBook(void)
     if (!ParserChapters())
         goto end;
 
-    ret = true;
+    ret = TRUE;
 
 end:
     if (!ret)
@@ -50,13 +82,13 @@ end:
     return ret;
 }
 
-bool TextBook::ReadBook(void)
+BOOL TextBook::ReadBook(void)
 {
     FILE *fp = NULL;
     char *buf = NULL;
     int len;
     int size;
-    bool ret = false;
+    BOOL ret = FALSE;
 
     if (m_Data && m_Size > 0)
     {
@@ -73,11 +105,12 @@ bool TextBook::ReadBook(void)
         len = ftell(fp);
         fseek(fp, 0, SEEK_SET);
 
-        buf = (char *)malloc(len + 1);
+        buf = (char *)malloc(len + 2);
         buf[len] = 0;
+        buf[len+1] = 0;
         if (!buf)
             goto end;
-        size = fread(buf, 1, len, fp);
+        size = (int)fread(buf, 1, len, fp);
         if (size != len)
             goto end;
     }
@@ -86,13 +119,13 @@ bool TextBook::ReadBook(void)
         goto end;
     }
 
-    if (!DecodeText(buf, len, &m_Text, &m_TextLength))
+    if (!DecodeText(buf, len, &m_Text, &m_Length))
         goto end;
 
     if (m_bForceKill)
         goto end;
 
-    ret = true;
+    ret = TRUE;
 
 end:
     if (fp)
@@ -106,36 +139,56 @@ end:
     return ret;
 }
 
-bool TextBook::ParserChapters(void)
+BOOL TextBook::ParserChapters(void)
+{
+    if (m_Rule)
+    {
+        m_Chapters.clear();
+        if (m_Rule->rule == 0)
+        {
+            return ParserChaptersDefault();
+        }
+        else if (m_Rule->rule == 1)
+        {
+            return ParserChaptersKeyword();
+        }
+        else if (m_Rule->rule == 2)
+        {
+            return ParserChaptersRegex();
+        }
+    }
+    return FALSE;
+}
+
+BOOL TextBook::ParserChaptersDefault(void)
 {
     wchar_t *text = m_Text;
     wchar_t title[MAX_CHAPTER_LENGTH] = { 0 };
     int line_size;
     int title_len = 0;
-    bool bFound = false;
+    BOOL bFound = FALSE;
     int idx_1 = -1, idx_2 = -1;
     chapter_item_t chapter;
-    int menu_begin_id = IDM_CHAPTER_BEGIN;
 
-    while (true)
+    while (TRUE)
     {
         if (m_bForceKill)
         {
-            return false;
+            return FALSE;
         }
 
-        if (!GetLine(text, m_TextLength - (text - m_Text), &line_size))
+        if (!GetLine(text, m_Length - (int)(text - m_Text), &line_size, NULL, NULL, NULL, NULL))
         {
             break;
         }
 
         // check format
-        bFound = false;
+        bFound = FALSE;
         idx_1 = -1;
         idx_2 = -1;
         for (int i = 0; i < line_size; i++)
         {
-            if (text[i] == _T('µ⁄'))
+            if (text[i] == _T('Á¨¨'))
             {
                 idx_1 = i;
             }
@@ -143,19 +196,22 @@ bool TextBook::ParserChapters(void)
                 && ((line_size > i + 1 && text[i + 1] == _T(' ')
                     || text[i + 1] == _T('\t'))
                     || text[i + 1] == 0x3000 // Full Angle space
-                    || line_size <= i + 1))
+                    || text[i + 1] == 0xA0 // Full Angle space
+                    || line_size <= i + 1)
+                    || text[i + 1] == _T('Ôºö')
+                    || text[i + 1] == _T(':'))
             {
-                if (text[i] == _T('æÌ')
-                    || text[i] == _T('’¬')
-                    || text[i] == _T('≤ø')
-                    || text[i] == _T('Ω⁄'))
+                if (text[i] == _T('Âç∑')
+                    || text[i] == _T('Á´†')
+                    || text[i] == _T('ÈÉ®')
+                    || text[i] == _T('ËäÇ'))
                 {
                     idx_2 = i;
-                    bFound = true;
+                    bFound = TRUE;
                     break;
                 }
             }
-            if (idx_1 == -1 && line_size > i + 2 && text[i] == _T('–®') && text[i+1] == _T('◊”')
+            if (idx_1 == -1 && line_size > i + 2 && text[i] == _T('Ê•î') && text[i + 1] == _T('Â≠ê')
                 && ((text[i + 2] == _T(' ')
                 || text[i + 2] == _T('\t'))
                 || text[i + 2] == 0x3000 // Full Angle space
@@ -163,65 +219,169 @@ bool TextBook::ParserChapters(void)
             {
                 idx_1 = i;
                 idx_2 = line_size - 1;
-                bFound = true;
+                bFound = TRUE;
+                break;
+            }
+            if (idx_1 == -1 && line_size > i + 2 && text[i] == _T('Â∫è') && text[i + 1] == _T('Á´†')
+                && ((text[i + 2] == _T(' ')
+                    || text[i + 2] == _T('\t'))
+                    || text[i + 2] == 0x3000 // Full Angle space
+                    || line_size <= i + 1))
+            {
+                idx_1 = i;
+                idx_2 = line_size - 1;
+                bFound = TRUE;
                 break;
             }
         }
-        if (bFound && (text[idx_1] == _T('–®') || (IsChapter(text + idx_1 + 1, idx_2 - idx_1 - 1))))
+        if (bFound && (text[idx_1] == _T('Ê•î') || text[idx_1] == _T('Â∫è') || (IsChapter(text + idx_1 + 1, idx_2 - idx_1 - 1))))
         {
             title_len = line_size - idx_1 < (MAX_CHAPTER_LENGTH - 1) ? line_size - idx_1 : MAX_CHAPTER_LENGTH - 1;
             memcpy(title, text + idx_1, title_len * sizeof(wchar_t));
             title[title_len] = 0;
 
-            chapter.index = /*idx_1 +*/ (text - m_Text);
+            chapter.index = /*idx_1 +*/ (int)(text - m_Text);
             chapter.title = title;
-            m_Chapters.insert(std::make_pair(menu_begin_id++, chapter));
+            chapter.title_len = title_len;
+            m_Chapters.push_back(chapter);
         }
 
         // set index
         text += line_size + 1; // add 0x0a
     }
-    return true;
+
+    return TRUE;
 }
 
-bool TextBook::GetLine(wchar_t* text, int len, int* line_size)
+BOOL TextBook::ParserChaptersKeyword(void)
 {
-    if (!text || len <= 0)
-        return false;
+    wchar_t *text = m_Text;
+    wchar_t title[MAX_CHAPTER_LENGTH] = { 0 };
+    int line_size;
+    int title_len = 0;
+    BOOL bFound = FALSE;
+    int idx_1 = -1;
+    int cmplen;
+    chapter_item_t chapter;
 
-    for (int i = 0; i < len; i++)
+    while (TRUE)
     {
-        if (text[i] == 0x0A)
+        if (m_bForceKill)
         {
-            *line_size = i;
-            return true;
+            return FALSE;
         }
+
+        if (!GetLine(text, m_Length - (int)(text - m_Text), &line_size, NULL, NULL, NULL, NULL))
+        {
+            break;
+        }
+
+        // check format
+        cmplen = (int)wcslen(m_Rule->keyword);
+        if (cmplen <= line_size)
+        {
+            bFound = FALSE;
+            idx_1 = -1;
+            for (int i = 0; i < line_size; i++)
+            {
+                if (wcsncmp(text+i, m_Rule->keyword, cmplen) == 0)
+                {
+                    idx_1 = i;
+                    bFound = TRUE;
+                    break;
+                }
+            }
+            if (bFound)
+            {
+                title_len = line_size - idx_1 < (MAX_CHAPTER_LENGTH - 1) ? line_size - idx_1 : MAX_CHAPTER_LENGTH - 1;
+                memcpy(title, text + idx_1, title_len * sizeof(wchar_t));
+                title[title_len] = 0;
+
+                chapter.index = /*idx_1 +*/ (int)(text - m_Text);
+                chapter.title = title;
+                chapter.title_len = title_len;
+                m_Chapters.push_back(chapter);
+            }
+        }
+
+        // set index
+        text += line_size + 1; // add 0x0a
     }
-    *line_size = len;
-    return true;
+    return TRUE;
 }
 
-bool TextBook::IsChapter(wchar_t* text, int len)
+BOOL TextBook::ParserChaptersRegex(void)
 {
-    bool bFound = false;
+    wchar_t title[MAX_CHAPTER_LENGTH] = { 0 };
+    int title_len = 0;
+    chapter_item_t chapter;
+    int offset = 0;
+    std::wcmatch cm;
+    std::wregex *e = NULL;
+    TCHAR *text = m_Text;
+
+    try
+    {
+        e = new std::wregex(m_Rule->regex);    
+    }
+    catch (...)
+    {
+        if (e)
+        {
+            delete e;
+        }
+        return FALSE;
+    }
+
+    while (std::regex_search(text, cm, *e, std::regex_constants::format_first_only))
+    {
+        if (m_bForceKill)
+        {
+            break;
+        }
+
+        title_len = (int)cm.length() < (MAX_CHAPTER_LENGTH - 1) ? (int)cm.length() : MAX_CHAPTER_LENGTH - 1;
+        memcpy(title, cm.str().c_str(), title_len * sizeof(wchar_t));
+        title[title_len] = 0;
+
+        chapter.index = offset + (int)cm.position();
+        chapter.title = title;
+        chapter.title_len = title_len;
+        m_Chapters.push_back(chapter);
+
+
+        text += cm.position() + cm.length();
+        offset += (int)cm.position() + (int)cm.length();
+    }
+    if (e)
+    {
+        delete e;
+    }
+
+    return TRUE;
+}
+
+BOOL TextBook::IsChapter(wchar_t* text, int len)
+{
+    BOOL bFound = FALSE;
     if (!text || len <= 0)
-        return false;
+        return FALSE;
 
     for (int i = 0; i < len; i++)
     {
-        bFound = false;
+        bFound = FALSE;
         for (int j = 0; j < sizeof(m_ValidChapter)/sizeof(m_ValidChapter[0]); j++)
         {
             if (text[i] == m_ValidChapter[j])
             {
-                bFound = true;
+                bFound = TRUE;
                 break;
             }
         }
         if (!bFound)
         {
-            return false;
+            return FALSE;
         }
     }
-    return true;
+    return TRUE;
 }

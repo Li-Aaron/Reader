@@ -1,21 +1,17 @@
-#include "stdafx.h"
 #include "EpubBook.h"
 #include "Utils.h"
+#ifdef ZLIB_ENABLE
 #include "unzip.h"
 #include "iowin32.h"
+#else
+#include "miniz.h"
+#endif
 #include "libxml/xmlreader.h"
+#include "libxml/HTMLtree.h"
 #include "libxml/HTMLparser.h"
 #include "libxml/xpath.h"
 #include <shlwapi.h>
 
-
-#ifdef _DEBUG
-#pragma comment(lib, "zlibstatd.lib")
-#pragma comment(lib, "libxml2_ad.lib")
-#else
-#pragma comment(lib, "zlibstat.lib")
-#pragma comment(lib, "libxml2_a.lib")
-#endif
 
 EpubBook::EpubBook()
     : m_Cover(NULL)
@@ -39,17 +35,22 @@ book_type_t EpubBook::GetBookType()
     return book_epub;
 }
 
-Bitmap * EpubBook::GetCoverImage(void)
+BOOL EpubBook::SaveBook(HWND hWnd)
 {
-    return m_Cover;
+    return FALSE;
 }
 
-bool EpubBook::ParserBook(void)
+BOOL EpubBook::UpdateChapters(int offset)
 {
-    bool ret = false;
+    return FALSE;
+}
+
+BOOL EpubBook::ParserBook(HWND hWnd)
+{
+    BOOL ret = FALSE;
     epub_t epub;
-    mainfest_t::iterator itor;
-    navmap_t::iterator it;
+    manifests_t::iterator itor;
+    navpoints_t::iterator it;
 
     // unzip epub file
     if (!UnzipBook())
@@ -73,18 +74,21 @@ bool EpubBook::ParserBook(void)
     if (!ParserChapters(epub))
         goto end;
 
-    ret = true;
+    ret = TRUE;
 
 end:
     // free epub
-    for (itor = epub.mainfest.begin(); itor != epub.mainfest.end(); itor++)
+    for (itor = epub.manifests.begin(); itor != epub.manifests.end(); itor++)
     {
         delete itor->second;
     }
-    for (it = epub.navmap.begin(); it != epub.navmap.end(); it++)
+    epub.manifests.clear();
+    for (it = epub.navpoints.begin(); it != epub.navpoints.end(); it++)
     {
         delete it->second;
     }
+    epub.navpoints.clear();
+    epub.spines.clear();
     FreeFilelist();
     if (!ret)
     {
@@ -99,6 +103,16 @@ end:
     return ret;
 }
 
+Gdiplus::Bitmap* EpubBook::GetCover(void)
+{
+    return m_Cover;
+}
+
+int EpubBook::GetTextBeginIndex(void)
+{
+    return m_Cover ? 1 : 0;
+}
+
 void EpubBook::FreeFilelist(void)
 {
     filelist_t::iterator itor;
@@ -109,14 +123,15 @@ void EpubBook::FreeFilelist(void)
     m_flist.clear();
 }
 
-bool EpubBook::UnzipBook(void)
+#ifdef ZLIB_ENABLE
+BOOL EpubBook::UnzipBook(void)
 {
     unzFile uf = NULL;
-    zlib_filefunc64_def ffunc;
+    zlib_filefunc64_def ffunc = {0};
     uLong i;
-    unz_global_info64 gi = {0};
+    unz_global_info gi = {0};
     int err = UNZ_ERRNO;
-    unz_file_info64 file_info;
+    unz_file_info64 file_info = {0};
     char filename_inzip[MAX_PATH] = {0};
     char *buf = NULL;
     file_data_t fdata;
@@ -126,7 +141,7 @@ bool EpubBook::UnzipBook(void)
     if (!uf)
         goto end;
 
-    err = unzGetGlobalInfo64(uf, &gi);
+    err = unzGetGlobalInfo(uf, &gi);
     if (err != UNZ_OK)
         goto end;
 
@@ -157,14 +172,14 @@ bool EpubBook::UnzipBook(void)
                     goto end;
 
                 // read file to memory
-                err = unzReadCurrentFile(uf, buf, (size_t)file_info.uncompressed_size);
+                err = unzReadCurrentFile(uf, buf, (unsigned int)file_info.uncompressed_size);
                 if (err != file_info.uncompressed_size)
                     goto end;
                 err = UNZ_OK;
 
                 // save to file map
                 fdata.data = buf;
-                fdata.size = (size_t)file_info.uncompressed_size;
+                fdata.size = (int)file_info.uncompressed_size;
                 m_flist.insert(std::make_pair(filename_inzip, fdata));
                 buf = NULL;
             }
@@ -199,8 +214,81 @@ end:
         FreeFilelist();
     return err == UNZ_OK;
 }
+#else
+BOOL EpubBook::UnzipBook(void)
+{
+    mz_zip_archive zip_archive;
+    mz_zip_archive_file_stat file_stat;
+    mz_uint file_count = 0;
+    mz_uint i;
+#if 0
+    char* filename = NULL;
+#endif
+    char *buf = NULL;
+    file_data_t fdata;
 
-bool EpubBook::ParserOcf(epub_t &epub)
+#if 0
+    filename = Utf16ToAnsi(m_fileName);
+#endif
+
+    FreeFilelist();
+
+    memset(&zip_archive, 0, sizeof(zip_archive));
+
+    if (!mz_zip_reader_init_file(&zip_archive, (const char*)m_fileName, 0))
+        return FALSE;
+
+    file_count = mz_zip_reader_get_num_files(&zip_archive);
+    if (file_count == 0)
+    {
+        mz_zip_reader_end(&zip_archive);
+        return FALSE;
+    }
+
+    if (!mz_zip_reader_file_stat(&zip_archive, 0, &file_stat))
+    {
+        mz_zip_reader_end(&zip_archive);
+        return FALSE;
+    }
+
+    for (i = 0; i < file_count; i++)
+    {
+        if (!mz_zip_reader_file_stat(&zip_archive, i, &file_stat))
+            continue;
+        if (mz_zip_reader_is_file_a_directory(&zip_archive, i))
+            continue; // skip directories for now
+
+        // create memory to save this file
+        buf = (char *)malloc((size_t)file_stat.m_uncomp_size);
+        if (!buf)
+        {
+            mz_zip_reader_end(&zip_archive);
+            FreeFilelist();
+            return FALSE;
+        }
+
+        // read file to memory
+        if (!mz_zip_reader_extract_to_mem(&zip_archive, i, buf, (size_t)file_stat.m_uncomp_size, 0))
+        {
+            free(buf);
+            mz_zip_reader_end(&zip_archive);
+            FreeFilelist();
+            return FALSE;
+        }
+
+        // save to file map
+        fdata.data = buf;
+        fdata.size = (size_t)file_stat.m_uncomp_size;
+        m_flist.insert(std::make_pair(file_stat.m_filename, fdata));
+    }
+
+    // Close the archive, freeing any resources it was using
+    mz_zip_reader_end(&zip_archive);
+    return TRUE;
+}
+#endif
+
+BOOL EpubBook::ParserOcf(epub_t &epub)
 {
     filelist_t::iterator itor;
     xmlDocPtr doc = NULL;
@@ -210,7 +298,7 @@ bool EpubBook::ParserOcf(epub_t &epub)
     xmlNodeSetPtr nodeset;
     xmlChar *keyword;
     int i;
-    bool ret = false;
+    BOOL ret = FALSE;
 
     itor = m_flist.find(epub.ocf);
     if (itor == m_flist.end())
@@ -250,7 +338,7 @@ bool EpubBook::ParserOcf(epub_t &epub)
             {
                 epub.path = epub.opf.substr(0, epub.opf.rfind('/') + 1);
             }
-            ret = true;
+            ret = TRUE;
             xmlFree(keyword);
             break;
         }
@@ -269,7 +357,7 @@ end:
     return ret;
 }
 
-bool EpubBook::ParserOpf(epub_t &epub)
+BOOL EpubBook::ParserOpf(epub_t &epub)
 {
     filelist_t::iterator itor;
     xmlDocPtr doc = NULL;
@@ -278,10 +366,11 @@ bool EpubBook::ParserOpf(epub_t &epub)
     xmlXPathObjectPtr xpathobj = NULL;
     xmlNodeSetPtr nodeset;
     xmlChar *keyword;
-    mainfest_item_t *item = NULL;
-    mainfest_t::iterator it;
+    manifest_t *item = NULL;
+    manifests_t::iterator it;
     int i,j;
-    bool ret = false;
+    BOOL ret = FALSE;
+    char buff[1024];
 
     itor = m_flist.find(epub.opf);
     if (itor == m_flist.end())
@@ -301,7 +390,7 @@ bool EpubBook::ParserOpf(epub_t &epub)
     if (m_bForceKill)
         goto end;
 
-    // parser mainfest
+    // parser manifest
     {
         xpath = BAD_CAST("//*[local-name()='item']/@*[name()='id' or name()='href' or name()='media-type']");
         xpathobj = xmlXPathEvalExpression(xpath, xpathctx);
@@ -314,7 +403,7 @@ bool EpubBook::ParserOpf(epub_t &epub)
         nodeset = xpathobj->nodesetval;
         for (i = 0; i < nodeset->nodeNr; /*i++*/)
         {
-            item = new mainfest_item_t;
+            item = new manifest_t;
             if (!item)
                 goto end;
             for (j = 0; j < 3 && i < nodeset->nodeNr; j++, i++)
@@ -328,7 +417,8 @@ bool EpubBook::ParserOpf(epub_t &epub)
                     }
                     else if (xmlStrcmp(nodeset->nodeTab[i]->name, (const xmlChar *)"href") == 0)
                     {
-                        item->href = (const char *)keyword;
+                        url_decode((const char *)keyword, buff);
+                        item->href = (const char *)buff;
                     }
                     else if (xmlStrcmp(nodeset->nodeTab[i]->name, (const xmlChar *)"media-type") == 0)
                     {
@@ -345,7 +435,7 @@ bool EpubBook::ParserOpf(epub_t &epub)
             }
             if (!item->id.empty() && !item->href.empty() && !item->media_type.empty())
             {
-                epub.mainfest.insert(std::make_pair(item->id, item));
+                epub.manifests.insert(std::make_pair(item->id, item));
             }
             else
             {
@@ -354,7 +444,7 @@ bool EpubBook::ParserOpf(epub_t &epub)
             }
         }
 
-        if (epub.mainfest.empty())
+        if (epub.manifests.empty())
             goto end;
 
         if (xpathobj)
@@ -380,12 +470,12 @@ bool EpubBook::ParserOpf(epub_t &epub)
             keyword = xmlNodeGetContent(nodeset->nodeTab[i]);
             if (keyword && keyword[0])
             {
-                if (epub.mainfest.find((const char *)keyword) == epub.mainfest.end())
+                if (epub.manifests.find((const char *)keyword) == epub.manifests.end())
                 {
                     xmlFree(keyword);
                     goto end;
                 }
-                epub.spine.push_back((const char *)keyword);
+                epub.spines.push_back((const char *)keyword);
             }
             if (keyword)
                 xmlFree(keyword);
@@ -393,18 +483,18 @@ bool EpubBook::ParserOpf(epub_t &epub)
                 goto end;
         }
 
-        if (epub.spine.empty())
+        if (epub.spines.empty())
             goto end;
 
         if (xpathobj)
             xmlXPathFreeObject(xpathobj);
     }
 
-    ret = true;
+    ret = TRUE;
 
     if (m_bForceKill)
     {
-        ret = false;
+        ret = FALSE;
         goto end;
     }
 
@@ -424,8 +514,8 @@ bool EpubBook::ParserOpf(epub_t &epub)
             keyword = xmlNodeGetContent(nodeset->nodeTab[i]);
             if (keyword && keyword[0])
             {
-                it = epub.mainfest.find((const char *)keyword);
-                if (it == epub.mainfest.end())
+                it = epub.manifests.find((const char *)keyword);
+                if (it == epub.manifests.end())
                 {
                     xmlFree(keyword);
                     epub.ncx = "";
@@ -450,7 +540,7 @@ end:
     return ret;
 }
 
-bool EpubBook::ParserNcx(epub_t &epub)
+BOOL EpubBook::ParserNcx(epub_t &epub)
 {
     filelist_t::iterator itor;
     xmlDocPtr doc = NULL;
@@ -462,11 +552,13 @@ bool EpubBook::ParserNcx(epub_t &epub)
     xmlNodeSetPtr nodeset;
     navpoint_t *navp = NULL;
     int i;
-    bool ret = false;
+    BOOL ret = FALSE;
+    int flag = 0;
+    char buff[1024];
 
     // not exist ncx
     if (epub.ncx.empty())
-        return true;
+        return TRUE;
 
     itor = m_flist.find(epub.path+epub.ncx);
     if (itor == m_flist.end())
@@ -498,18 +590,27 @@ bool EpubBook::ParserNcx(epub_t &epub)
     for (i = 0; i < nodeset->nodeNr; i++)
     {
         src = NULL;
+        text = NULL;
         node = nodeset->nodeTab[i];
         id = xmlGetProp(node, BAD_CAST"id");
         order = xmlGetProp(node, BAD_CAST"playOrder");
-        text = xmlNodeGetContent(node);
+        //text = xmlNodeGetContent(node);
         node = node->children;
+        flag = 0;
         while (node)
         {
             if (xmlStrcasecmp(node->name, BAD_CAST"content") == 0)
             {
                 src = xmlGetProp(node, BAD_CAST"src");
-                break;
+                flag++;
             }
+            if (xmlStrcasecmp(node->name, BAD_CAST"navLabel") == 0)
+            {
+                text = xmlNodeGetContent(node->children);
+                flag++;
+            }
+            if (flag >= 2)
+                break;
             node = node->next;
         }
 
@@ -537,8 +638,11 @@ bool EpubBook::ParserNcx(epub_t &epub)
         if (text)
             navp->text = (const char *)text;
         if (src)
-            navp->src = (const char *)src;
-        epub.navmap.insert(std::make_pair(navp->id, navp));
+        {
+            url_decode((const char *)src, buff);
+            navp->src = (const char *)buff;
+        }
+        epub.navpoints.insert(std::make_pair(navp->src, navp));
 
         if (id)
             xmlFree(id);
@@ -552,9 +656,9 @@ bool EpubBook::ParserNcx(epub_t &epub)
             goto end;
     }
 
-    if (!epub.navmap.empty())
+    if (!epub.navpoints.empty())
     {
-        ret = true;
+        ret = TRUE;
     }
 
 end:
@@ -567,7 +671,7 @@ end:
     return ret;
 }
 
-bool EpubBook::ParserOps(file_data_t *fdata, wchar_t **text, int *len, wchar_t **title, int *tlen, bool parsertitle)
+BOOL EpubBook::ParserOps(file_data_t *fdata, wchar_t **text, int *len, wchar_t **title, int *tlen, BOOL parsertitle)
 {
     filelist_t::iterator itor;
     xmlDocPtr doc = NULL;
@@ -577,13 +681,12 @@ bool EpubBook::ParserOps(file_data_t *fdata, wchar_t **text, int *len, wchar_t *
     xmlXPathObjectPtr xpathobj = NULL;
     xmlNodeSetPtr nodeset;
     int i;
-    bool ret = false;
+    BOOL ret = FALSE;
     xmlChar *format_str = NULL;
     int size;
 
     xmlKeepBlanksDefault(0);
-    xmlIndentTreeOutput = 0;
-    doc = xmlReadMemory((const char *)fdata->data, fdata->size, NULL, NULL, XML_PARSE_RECOVER | XML_PARSE_NOBLANKS);
+    doc = htmlReadMemory((const char *)fdata->data, fdata->size, NULL, NULL, XML_PARSE_RECOVER | XML_PARSE_NOBLANKS);
     if (!doc)
         goto end;
 
@@ -591,7 +694,8 @@ bool EpubBook::ParserOps(file_data_t *fdata, wchar_t **text, int *len, wchar_t *
         goto end;
 
 #if 1 // format xml
-    xmlDocDumpFormatMemory(doc, &format_str, &size, 1);
+    //xmlDocDumpFormatMemory(doc, &format_str, &size, 1);
+    htmlDocDumpMemoryFormat(doc, &format_str, &size, 1);
     xmlFreeDoc(doc);
     if (!format_str || size <= 0)
     {
@@ -601,8 +705,10 @@ bool EpubBook::ParserOps(file_data_t *fdata, wchar_t **text, int *len, wchar_t *
     }
     
     xmlKeepBlanksDefault(1);
-    xmlIndentTreeOutput = 0;
-    doc = xmlReadMemory((const char *)format_str, size, NULL, NULL, XML_PARSE_RECOVER/* | XML_PARSE_NOBLANKS*/);
+    // htmlDocDumpMemoryFormat may serialize characters such as curly quotes as
+    // HTML named entities. Reparse the formatted document as HTML so those
+    // entities survive instead of being discarded by the XML parser.
+    doc = htmlReadMemory((const char *)format_str, size, NULL, NULL, HTML_PARSE_RECOVER);
     xmlFree(format_str);
     if (!doc)
         goto end;
@@ -631,7 +737,7 @@ bool EpubBook::ParserOps(file_data_t *fdata, wchar_t **text, int *len, wchar_t *
         {
             value = xmlNodeGetContent(nodeset->nodeTab[i]);
 
-            if (!DecodeText((const char *)value, strlen((const char *)value), title, tlen))
+            if (!DecodeText((const char *)value, (int)strlen((const char *)value), title, tlen))
             {
                 xmlFree(value);
                 break;
@@ -662,10 +768,10 @@ body:
         {
             value = xmlNodeGetContent(nodeset->nodeTab[i]);
 
-            if (!DecodeText((const char *)value, strlen((const char *)value), text, len))
-                ret = false;
+            if (!DecodeText((const char *)value, (int)strlen((const char *)value), text, len))
+                ret = FALSE;
             else
-                ret = true;
+                ret = TRUE;
 
             xmlFree(value);
             break;
@@ -682,7 +788,7 @@ end:
     return ret;
 }
 
-bool EpubBook::ParserChapters(epub_t &epub)
+BOOL EpubBook::ParserChapters(epub_t &epub)
 {
     typedef struct buffer_t
     {
@@ -690,10 +796,10 @@ bool EpubBook::ParserChapters(epub_t &epub)
         int len;
     } buffer_t;
 
-    spine_t::iterator itspine;
+    spines_t::iterator itspine;
     filelist_t::iterator itflist;
-    mainfest_t::iterator itmfest;
-    navmap_t::iterator itnav;
+    manifests_t::iterator itmfest;
+    navpoints_t::iterator itnav;
     file_data_t *fdata;
     chapter_item_t chapter;
     std::string filename;
@@ -703,32 +809,32 @@ bool EpubBook::ParserChapters(epub_t &epub)
     int index = 0, i=0;
     buffer_t *buffer = NULL;
 
-    m_TextLength = 1; // add one wchar_t '0x0a' new line for cover
-    buffer = (buffer_t *)malloc(epub.spine.size() * sizeof(buffer_t));
-    for (itspine = epub.spine.begin(); itspine != epub.spine.end(); itspine++)
+    m_Length = GetCover() ? 1 : 0;
+    buffer = (buffer_t *)malloc(epub.spines.size() * sizeof(buffer_t));
+    for (itspine = epub.spines.begin(); itspine != epub.spines.end(); itspine++)
     {
         if (m_bForceKill)
             goto end;
-        itmfest = epub.mainfest.find(*itspine);
-        if (itmfest != epub.mainfest.end())
+        itmfest = epub.manifests.find(*itspine);
+        if (itmfest != epub.manifests.end())
         {
             filename = epub.path + itmfest->second->href;
             itflist = m_flist.find(filename);
-            itnav = epub.navmap.find(itmfest->second->id);
+            itnav = epub.navpoints.find(itmfest->second->href);
             if (itflist != m_flist.end() /*&& itnav != epub.navmap.end()*/)
             {
                 fdata = &(itflist->second);
-                if (ParserOps(fdata, &text, &len, &title, &tlen, itnav == epub.navmap.end()))
+                if (ParserOps(fdata, &text, &len, &title, &tlen, itnav == epub.navpoints.end()))
                 {
                     if (len > 0)
                     {
                         buffer[index].text = text;
                         buffer[index].len = len;
-                        chapter.index = m_TextLength == 1 ? 0 : m_TextLength;
-                        m_TextLength += len;
-                        if (itnav != epub.navmap.end())
+                        chapter.index = m_Length;
+                        m_Length += len;
+                        if (itnav != epub.navpoints.end())
                         {
-                            DecodeText(itnav->second->text.c_str(), itnav->second->text.size(), &title, &tlen);
+                            DecodeText(itnav->second->text.c_str(), (int)itnav->second->text.size(), &title, &tlen);
                             chapter.title = title;
                         }
                         else
@@ -737,8 +843,10 @@ bool EpubBook::ParserChapters(epub_t &epub)
                         }
                         if (title)
                             free(title);
+                        chapter.title_len = tlen;
                         if (!chapter.title.empty())
-                            m_Chapters.insert(std::make_pair(IDM_CHAPTER_BEGIN + index++, chapter));
+                            m_Chapters.push_back(chapter);
+                        index++;
                     }
                 }
             }
@@ -753,14 +861,23 @@ end:
             free(buffer[i].text);
         }
         free(buffer);
-        return false;
+        return FALSE;
     }
     if (index > 0)
     {
-        len = 1; // add one wchar_t '0x0a' new line for cover
-        m_Text = (wchar_t *)malloc(sizeof(wchar_t) * (m_TextLength + 1));
-        m_Text[m_TextLength] = 0;
-        m_Text[0] = 0x0A;
+        if (GetCover())
+        {
+            len = 1; // add one wchar_t '0x0a' new line for cover
+            m_Text = (wchar_t *)malloc(sizeof(wchar_t) * (m_Length + 1));
+            m_Text[0] = 0x0A;
+        }
+        else
+        {
+            len = 0;
+            m_Text = (wchar_t *)malloc(sizeof(wchar_t) * (m_Length + 1));
+        }
+        m_Text[m_Length] = 0;
+        
         for (i = 0; i < index; i++)
         {
             memcpy(m_Text + len, buffer[i].text, buffer[i].len * sizeof(wchar_t));
@@ -769,16 +886,19 @@ end:
         }
     }
     free(buffer);
-    return true;
+    return TRUE;
 }
 
-bool EpubBook::ParserCover(epub_t &epub)
+BOOL EpubBook::ParserCover(epub_t &epub)
 {
     filelist_t::iterator itflist;
-    mainfest_t::iterator itmfest;
+    manifests_t::iterator itmfest;
+    navpoints_t::iterator itnav;
+    navpoint_t *p_navpoint;
     file_data_t *fdata;
     IStream *pStream = NULL;
-    bool found = false;
+    const char *cover_fname = NULL;
+    char image_fname[1024] = {0};
 
     if (m_Cover)
     {
@@ -786,33 +906,148 @@ bool EpubBook::ParserCover(epub_t &epub)
         m_Cover = NULL;
     }
 
-    for (itmfest = epub.mainfest.begin(); itmfest != epub.mainfest.end(); itmfest++)
+    // find 'cover' from ncx
+    if (!epub.navpoints.empty())
     {
-        if (strstr(itmfest->first.c_str(), "cover") && strstr(itmfest->second->media_type.c_str(), "image/"))
+        for (itnav = epub.navpoints.begin(); itnav != epub.navpoints.end(); itnav++)
         {
-            found = true;
-            break;
+            p_navpoint = itnav->second;
+            if (p_navpoint->order <= 1)
+            {
+                if (strcasestr(p_navpoint->id.c_str(), "cover")
+                    || strcasestr(p_navpoint->src.c_str(), "cover"))
+                {
+                    for (itmfest = epub.manifests.begin(); itmfest != epub.manifests.end(); itmfest++)
+                    {
+                        if (0 == strcmp(p_navpoint->src.c_str(), itmfest->second->href.c_str()))
+                        {
+                            cover_fname = itmfest->second->href.c_str();
+                            goto _found;
+                        }
+                    }
+                    break;
+                }
+            }
         }
     }
 
-    if (!found)
-        return false;
-
-    itflist = m_flist.find(epub.path + itmfest->second->href);
-    if (itflist != m_flist.end())
+    // find 'cover' from spine
+    if (!epub.spines.empty())
     {
-        fdata = &(itflist->second);
-        pStream = SHCreateMemStream((const BYTE *)fdata->data, fdata->size);
-        m_Cover = new Bitmap(pStream);
-        if (m_Cover)
+        if (strcasestr(epub.spines.begin()->c_str(), "cover"))
         {
-            if (Gdiplus::Ok != m_Cover->GetLastStatus())
+            itmfest = epub.manifests.find(*epub.spines.begin());
+            if (itmfest != epub.manifests.end())
             {
-                delete m_Cover;
-                m_Cover = NULL;
+                cover_fname = itmfest->second->href.c_str();
+                goto _found;
             }
         }
-        pStream->Release();
+    }
+
+    // find 'cover' from manifest list
+    for (itmfest = epub.manifests.begin(); itmfest != epub.manifests.end(); itmfest++)
+    {
+        if (strcasestr(itmfest->first.c_str(), "cover") && strcasestr(itmfest->second->media_type.c_str(), "image/"))
+        {
+            strcpy(image_fname, itmfest->second->href.c_str());
+            goto _complete;
+        }
+    }
+
+_found:
+    // parser cover img from cover.xhtml
+    if (cover_fname)
+    {
+        itflist = m_flist.find(epub.path + cover_fname);
+        if (itflist != m_flist.end())
+        {
+            xmlDocPtr doc = NULL;
+            xmlNodePtr node;
+            xmlXPathContextPtr xpathctx = NULL;
+            xmlXPathObjectPtr xpathobj = NULL;
+            const xmlChar *xpath = NULL;
+            xmlNodeSetPtr nodeset;
+            int i;
+            xmlChar *src, *href;
+
+            fdata = &(itflist->second);
+            doc = xmlReadMemory((const char *)fdata->data, fdata->size, NULL, NULL, XML_PARSE_RECOVER | XML_PARSE_NOBLANKS);
+            if (doc)
+            {
+                xpathctx = xmlXPathNewContext(doc);
+                if (xpathctx)
+                {
+                    xpath = BAD_CAST("//*[local-name()='img']");
+                    xpathobj = xmlXPathEvalExpression(xpath, xpathctx);
+                    if (!xpathobj || xmlXPathNodeSetIsEmpty(xpathobj->nodesetval))
+                    {
+                        if (xpathobj)
+                            xmlXPathFreeObject(xpathobj);
+                        xpath = BAD_CAST("//*[local-name()='image']");
+                        xpathobj = xmlXPathEvalExpression(xpath, xpathctx);
+                    }
+
+                    if (xpathobj)
+                    {
+                        if (!xmlXPathNodeSetIsEmpty(xpathobj->nodesetval))
+                        {
+                            nodeset = xpathobj->nodesetval;
+                            for (i = 0; i < nodeset->nodeNr; i++)
+                            {
+                                node = nodeset->nodeTab[i];
+                                src = xmlGetProp(node, BAD_CAST"src");
+                                href = xmlGetProp(node, BAD_CAST"href");
+
+                                if (src)
+                                {
+                                    url_decode((const char *)src, image_fname);
+                                    // to absolute path, need to do ...
+                                    while (strstr(image_fname, "../") == image_fname)
+                                    {
+                                        strncpy(image_fname, image_fname+3, strlen(image_fname)-2);
+                                    }
+                                }
+                                else if (href)
+                                {
+                                    url_decode((const char *)href, image_fname);
+                                    // to absolute path, need to do ...
+                                    while (strstr(image_fname, "../") == image_fname)
+                                    {
+                                        strncpy(image_fname, image_fname+3, strlen(image_fname)-2);
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        xmlXPathFreeObject(xpathobj);
+                    }
+                    xmlXPathFreeContext(xpathctx);
+                }
+                xmlFreeDoc(doc);
+            }
+        }
+    }
+
+_complete:
+    if (image_fname[0])
+    {
+        itflist = m_flist.find(epub.path + image_fname);
+        if (itflist != m_flist.end())
+        {
+            fdata = &(itflist->second);
+            pStream = SHCreateMemStream((const BYTE *)fdata->data, fdata->size);
+            m_Cover = new Gdiplus::Bitmap(pStream);
+            if (m_Cover)
+            {
+                if (Gdiplus::Ok != m_Cover->GetLastStatus())
+                {
+                    delete m_Cover;
+                    m_Cover = NULL;
+                }
+            }
+            pStream->Release();
+        }
     }
 
     return m_Cover != NULL;

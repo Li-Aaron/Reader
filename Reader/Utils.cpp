@@ -1,126 +1,164 @@
-#include "StdAfx.h"
 #include "Utils.h"
 #include <stdint.h>
-#include <Wincrypt.h>
 #include <string.h>
+#include <stdio.h>
+#ifdef ZLIB_ENABLE
+#include "zlib.h"
+#else
+#include "miniz.h"
+#endif
 
+const char* UTF_16_BE_BOM = "\xFE\xFF";
+const char* UTF_16_LE_BOM = "\xFF\xFE";
+const char* UTF_8_BOM = "\xEF\xBB\xBF";
+const char* UTF_32_BE_BOM = "\x00\x00\xFE\xFF";
+const char* UTF_32_LE_BOM = "\xFF\xFE\x00\x00";
 
-Utils::Utils(void)
+static char* _result = NULL;
+static int _len = 0;
+static wchar_t* _wresult = NULL;
+static int _wlen = 0;
+
+wchar_t* ansi_to_utf16(const char* str, int size, int* len)
 {
+    wchar_t* result;
+    *len = MultiByteToWideChar(CP_ACP, 0, str, size, NULL, 0);
+    result = (wchar_t*)malloc(((*len)+1)*sizeof(wchar_t));
+    result[*len] = 0;
+    MultiByteToWideChar(CP_ACP, 0, str, size, (LPWSTR)result, *len);
+    return result;
 }
 
-
-Utils::~Utils(void)
+char* utf16_to_ansi(const wchar_t* str, int size, int* len)
 {
+    char* result;
+    *len = WideCharToMultiByte(CP_ACP, 0, str, size, NULL, 0, NULL, NULL);
+    result = (char*)malloc(((*len)+1) * sizeof(char));
+    result[*len] = 0;
+    WideCharToMultiByte(CP_ACP, 0, str, size, result, *len, NULL, NULL);
+    return result;
 }
 
-bool Utils::get_md5(void* data, size_t size, u128_t* result)
-{
-    HCRYPTPROV hProv = NULL;
-    HCRYPTPROV hHash = NULL;
-    DWORD cbHashSize = 0;
-    DWORD dwCount = sizeof(DWORD);
-    if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT))
-    {
-        return false;
-    }
-
-    if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
-    {
-        CryptReleaseContext(hProv, 0);
-        return false;
-    }
-
-    if (!CryptHashData(hHash, (BYTE*)data, size, 0))
-    {
-        CryptDestroyHash(hHash);
-        CryptReleaseContext(hProv, 0);
-        return false;
-    }
-
-    if (!CryptGetHashParam(hHash, HP_HASHSIZE, (BYTE*)&cbHashSize, &dwCount, 0))
-    {
-        CryptDestroyHash(hHash);
-        CryptReleaseContext(hProv, 0);
-        return false;
-    }
-
-    if (!CryptGetHashParam(hHash, HP_HASHVAL, (BYTE*)result, &cbHashSize, 0))
-    {
-        CryptDestroyHash(hHash);
-        CryptReleaseContext(hProv, 0);
-        return false;
-    }
-    CryptDestroyHash(hHash);
-    CryptReleaseContext(hProv, 0);
-    return true;
-}
-
-wchar_t* Utils::ansi_to_utf16(const char* str, int* len)
-{
-	wchar_t* result;
-	*len = MultiByteToWideChar(CP_ACP, 0, str, -1, NULL, 0);
-	result = (wchar_t*)malloc((*len)*sizeof(wchar_t));
-	memset(result, 0, (*len)*sizeof(wchar_t));
-	MultiByteToWideChar(CP_ACP, 0, str, -1, (LPWSTR)result, *len);
-	return result;
-}
-
-char* Utils::utf16_to_ansi(const wchar_t* str, int* len)
-{
-	char* result;
-	*len = WideCharToMultiByte(CP_ACP, 0, str, -1, NULL, 0, NULL, NULL);
-	result = (char*)malloc((*len)*sizeof(char));
-	memset(result, 0, (*len)*sizeof(char));
-	WideCharToMultiByte(CP_ACP, 0, str, -1, result, *len, NULL, NULL);
-	return result;
-}
-
-wchar_t* Utils::utf8_to_utf16(const char* str, int* len)
-{
-	wchar_t* result;
-	*len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
-	result = (wchar_t*)malloc((*len)*sizeof(wchar_t));
-	memset(result, 0, (*len)*sizeof(wchar_t));
-	MultiByteToWideChar(CP_UTF8, 0, str, -1, (LPWSTR)result, *len);
-	return result;
-}
-
-wchar_t* Utils::utf8_to_utf16_ex(const char* str, int size, int* len)
+wchar_t* utf8_to_utf16(const char* str, int size, int* len)
 {
     wchar_t* result;
     *len = MultiByteToWideChar(CP_UTF8, 0, str, size, NULL, 0);
-    result = (wchar_t*)malloc((*len) * sizeof(wchar_t));
-    memset(result, 0, (*len) * sizeof(wchar_t));
+    result = (wchar_t*)malloc(((*len)+1) * sizeof(wchar_t));
+    result[*len] = 0;
     MultiByteToWideChar(CP_UTF8, 0, str, size, (LPWSTR)result, *len);
     return result;
 }
 
-char* Utils::utf16_to_utf8(const wchar_t* str, int* len)
+char* utf16_to_utf8(const wchar_t* str, int size, int* len)
 {
-	char* result;
-	*len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
-	result =(char*)malloc((*len)*sizeof(char));
-	memset(result, 0, (*len)*sizeof(char));
-	WideCharToMultiByte(CP_UTF8, 0, str, -1, result, *len, NULL, NULL);
-	return result;
+    char* result;
+    *len = WideCharToMultiByte(CP_UTF8, 0, str, size, NULL, 0, NULL, NULL);
+    result = (char*)malloc(((*len)+1) * sizeof(char));
+    result[*len] = 0;
+    WideCharToMultiByte(CP_UTF8, 0, str, size, result, *len, NULL, NULL);
+    return result;
 }
 
-void Utils::free_buffer(void* buffer)
+char* utf16_to_utf8_bom(const wchar_t* str, int size, int* len)
 {
-	if (buffer)
-	{
-		free(buffer);
-	}
+    char* result;
+    int bom_header_len = 3;//strlen(UTF_8_BOM);
+    *len = WideCharToMultiByte(CP_UTF8, 0, str, size, NULL, 0, NULL, NULL);
+    result = (char*)malloc(((*len) + 1) * sizeof(char) + bom_header_len);
+    result[*len + bom_header_len] = 0;
+    memcpy(result, UTF_8_BOM, bom_header_len);
+    WideCharToMultiByte(CP_UTF8, 0, str, size, result + bom_header_len, *len, NULL, NULL);
+    return result;
 }
 
-const char *UTF_16_BE_BOM = "\xFE\xFF";
-const char *UTF_16_LE_BOM = "\xFF\xFE";
-const char *UTF_8_BOM = "\xEF\xBB\xBF";
-const char *UTF_32_BE_BOM = "\x00\x00\xFE\xFF";
-const char *UTF_32_LE_BOM = "\xFF\xFE\x00\x00";
+void free_buffer(void* buffer)
+{
+    if (buffer)
+    {
+        free(buffer);
+    }
+}
 
-type_t Utils::check_bom(const char *data, size_t size)
+char* Utf16ToUtf8(const wchar_t* str)
+{
+    int len;
+
+    len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
+    if (!_result)
+    {
+        _len = len + 1;
+        _result = (char*)malloc(_len * sizeof(char));
+    }
+    else if (_len < len + 1)
+    {
+        _len = len + 1;
+        _result = (char*)realloc(_result, _len * sizeof(char));
+    }
+
+    WideCharToMultiByte(CP_UTF8, 0, str, -1, _result, len, NULL, NULL);
+    _result[len] = 0;
+    return _result;
+}
+
+char *Utf16ToAnsi(const wchar_t* str)
+{
+    int len;
+
+    len = WideCharToMultiByte(CP_ACP, 0, str, -1, NULL, 0, NULL, NULL);
+    if (!_result)
+    {
+        _len = len + 1;
+        _result = (char*)malloc(_len * sizeof(char));
+    }
+    else if (_len < len + 1)
+    {
+        _len = len + 1;
+        _result = (char*)realloc(_result, _len * sizeof(char));
+    }
+
+    WideCharToMultiByte(CP_ACP, 0, str, -1, _result, len, NULL, NULL);
+    _result[len] = 0;
+    return _result;
+}
+
+wchar_t* Utf8ToUtf16(const char* str)
+{
+    int len;
+
+    len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+    if (!_wresult)
+    {
+        _wlen = len + 1;
+        _wresult = (wchar_t*)malloc(_wlen * sizeof(wchar_t));
+    }
+    else if (_wlen < len + 1)
+    {
+        _wlen = len + 1;
+        _wresult = (wchar_t*)realloc(_wresult, _wlen * sizeof(wchar_t));
+    }
+
+    MultiByteToWideChar(CP_UTF8, 0, str, -1, (LPWSTR)_wresult, len);
+    _wresult[len] = 0;
+    return _wresult;
+}
+
+void FreeConvertBuffer()
+{
+    if (_result)
+    {
+        free(_result);
+        _result = NULL;
+    }
+    if (_wresult)
+    {
+        free(_wresult);
+        _wresult = NULL;
+    }
+    _len = 0;
+    _wlen = 0;
+}
+
+type_t check_bom(const char *data, size_t size)
 {
     if (size >= 3) {
         if (memcmp(data, UTF_8_BOM, 3) == 0)
@@ -141,7 +179,7 @@ type_t Utils::check_bom(const char *data, size_t size)
     return Unknown;
 }
 
-int Utils::is_ascii(const char *data, size_t size)
+int is_ascii(const char *data, size_t size)
 {
     const unsigned char *str = (const unsigned char*)data;
     const unsigned char *end = str + size;
@@ -152,7 +190,7 @@ int Utils::is_ascii(const char *data, size_t size)
     return 1;
 }
 
-int Utils::is_utf8(const char *data, size_t size)
+int is_utf8(const char *data, size_t size)
 {
     const unsigned char *str = (unsigned char*)data;
     const unsigned char *end = str + size;
@@ -223,7 +261,7 @@ int Utils::is_utf8(const char *data, size_t size)
     return 1;
 }
 
-char* Utils::le_to_be(char* data, int len)
+char* le_to_be(char* data, int len)
 {
     char tmp;
     for (int i=0; i<len-1; i+=2)
@@ -235,12 +273,12 @@ char* Utils::le_to_be(char* data, int len)
     return data;
 }
 
-char* Utils::be_to_le(char* data, int len)
+char* be_to_le(char* data, int len)
 {
-	return le_to_be(data, len);
+    return le_to_be(data, len);
 }
 
-void Utils::b64_encode(const char *src, int slen, char *dst, int *dlen)
+void b64_encode(const char *src, int slen, char *dst, int *dlen)
 {
     static const char b64[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -272,7 +310,7 @@ void Utils::b64_encode(const char *src, int slen, char *dst, int *dlen)
     *dlen = out_len;
 }
 
-void Utils::b64_decode(const char *src, int slen, char *dst, int *dlen)
+void b64_decode(const char *src, int slen, char *dst, int *dlen)
 {
     static const unsigned char ascii[256] =
     {
@@ -313,4 +351,238 @@ void Utils::b64_decode(const char *src, int slen, char *dst, int *dlen)
         }
     }
     *dlen = out_len;
+}
+
+static char to_hex(char code) {
+    static char hex[] = "0123456789abcdef";
+    return hex[code & 15];
+}
+
+static char from_hex(char ch) {
+    return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
+}
+
+/*!
+size of dest must have min size of  3*strlen(src) +1
+*/
+int url_encode(const char *src, char *dest)
+{
+    const char *pstr = src;
+    char *pbuf = dest;
+
+    if (src == NULL || dest == NULL)
+    {
+        return -1;
+    }
+    while (*pstr)
+    {
+        if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~')
+            *pbuf++ = *pstr;
+        else if (*pstr == ' ')
+            *pbuf++ = '+';
+        else
+            *pbuf++ = '%', *pbuf++ = to_hex(*pstr >> 4), *pbuf++ = to_hex(*pstr & 15);
+        pstr++;
+    }
+    *pbuf = '\0';
+    return (int)(pbuf - dest);
+}
+
+/*!
+size of dest must have min size of  strlen(src) +1
+*/
+int url_decode(const char *src, char *dest)
+{
+    const char *pstr = src;
+    char *pbuf = dest;
+
+    if (src == NULL || dest == NULL)
+    {
+        return -1;
+    }
+    while (*pstr)
+    {
+        if (*pstr == '%')
+        {
+            if (pstr[1] && pstr[2])
+            {
+                *pbuf++ = from_hex(pstr[1]) << 4 | from_hex(pstr[2]);
+                pstr += 2;
+            }
+        }
+        else if (*pstr == '+')
+        {
+            *pbuf++ = ' ';
+        }
+        else
+        {
+            *pbuf++ = *pstr;
+        }
+        pstr++;
+    }
+    *pbuf = '\0';
+    return (int)(pbuf - dest);
+}
+
+static const unsigned char _charmap[] = {
+    u'\000', u'\001', u'\002', u'\003', u'\004', u'\005', u'\006', u'\007',
+    u'\010', u'\011', u'\012', u'\013', u'\014', u'\015', u'\016', u'\017',
+    u'\020', u'\021', u'\022', u'\023', u'\024', u'\025', u'\026', u'\027',
+    u'\030', u'\031', u'\032', u'\033', u'\034', u'\035', u'\036', u'\037',
+    u'\040', u'\041', u'\042', u'\043', u'\044', u'\045', u'\046', u'\047',
+    u'\050', u'\051', u'\052', u'\053', u'\054', u'\055', u'\056', u'\057',
+    u'\060', u'\061', u'\062', u'\063', u'\064', u'\065', u'\066', u'\067',
+    u'\070', u'\071', u'\072', u'\073', u'\074', u'\075', u'\076', u'\077',
+    u'\100', u'\141', u'\142', u'\143', u'\144', u'\145', u'\146', u'\147',
+    u'\150', u'\151', u'\152', u'\153', u'\154', u'\155', u'\156', u'\157',
+    u'\160', u'\161', u'\162', u'\163', u'\164', u'\165', u'\166', u'\167',
+    u'\170', u'\171', u'\172', u'\133', u'\134', u'\135', u'\136', u'\137',
+    u'\140', u'\141', u'\142', u'\143', u'\144', u'\145', u'\146', u'\147',
+    u'\150', u'\151', u'\152', u'\153', u'\154', u'\155', u'\156', u'\157',
+    u'\160', u'\161', u'\162', u'\163', u'\164', u'\165', u'\166', u'\167',
+    u'\170', u'\171', u'\172', u'\173', u'\174', u'\175', u'\176', u'\177',
+    u'\200', u'\201', u'\202', u'\203', u'\204', u'\205', u'\206', u'\207',
+    u'\210', u'\211', u'\212', u'\213', u'\214', u'\215', u'\216', u'\217',
+    u'\220', u'\221', u'\222', u'\223', u'\224', u'\225', u'\226', u'\227',
+    u'\230', u'\231', u'\232', u'\233', u'\234', u'\235', u'\236', u'\237',
+    u'\240', u'\241', u'\242', u'\243', u'\244', u'\245', u'\246', u'\247',
+    u'\250', u'\251', u'\252', u'\253', u'\254', u'\255', u'\256', u'\257',
+    u'\260', u'\261', u'\262', u'\263', u'\264', u'\265', u'\266', u'\267',
+    u'\270', u'\271', u'\272', u'\273', u'\274', u'\275', u'\276', u'\277',
+    u'\300', u'\341', u'\342', u'\343', u'\344', u'\345', u'\346', u'\347',
+    u'\350', u'\351', u'\352', u'\353', u'\354', u'\355', u'\356', u'\357',
+    u'\360', u'\361', u'\362', u'\363', u'\364', u'\365', u'\366', u'\367',
+    u'\370', u'\371', u'\372', u'\333', u'\334', u'\335', u'\336', u'\337',
+    u'\340', u'\341', u'\342', u'\343', u'\344', u'\345', u'\346', u'\347',
+    u'\350', u'\351', u'\352', u'\353', u'\354', u'\355', u'\356', u'\357',
+    u'\360', u'\361', u'\362', u'\363', u'\364', u'\365', u'\366', u'\367',
+    u'\370', u'\371', u'\372', u'\373', u'\374', u'\375', u'\376', u'\377',
+};
+
+int strcasecmp(const char *s1, const char *s2)
+{
+    const unsigned char *cm = _charmap;
+    const unsigned char *us1 = (const unsigned char *)s1;
+    const unsigned char *us2 = (const unsigned char *)s2;
+
+    while (cm[*us1] == cm[*us2++])
+        if (*us1++ == '\0')
+            return (0);
+    return (cm[*us1] - cm[*--us2]);
+}
+
+int strncasecmp(const char *s1, const char *s2, int n)
+{
+    if (n != 0) {
+        const unsigned char *cm = _charmap;
+        const unsigned char *us1 = (const unsigned char *)s1;
+        const unsigned char *us2 = (const unsigned char *)s2;
+
+        do {
+            if (cm[*us1] != cm[*us2++])
+                return (cm[*us1] - cm[*--us2]);
+            if (*us1++ == '\0')
+                break;
+        } while (--n != 0);
+    }
+    return (0);
+}
+
+char *strcasestr(const char *s, const char *find)
+{
+    char c, sc;
+    int len;
+
+    if ((c = *find++) != 0) {
+        c = (char)tolower((unsigned char)c);
+        len = (int)strlen(find);
+        do {
+            do {
+                if ((sc = *s++) == 0)
+                    return (NULL);
+            } while ((char)tolower((unsigned char)sc) != c);
+        } while (strncasecmp(s, find, len) != 0);
+        s--;
+    }
+    return ((char *)s);
+}
+
+BOOL Is_WinXP_SP2_or_Later(void)
+{
+    OSVERSIONINFOEX osvi;
+    DWORDLONG dwlConditionMask = 0;
+    int op = VER_GREATER_EQUAL;
+
+    // Initialize the OSVERSIONINFOEX structure.
+
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+    osvi.dwMajorVersion = 5;
+    osvi.dwMinorVersion = 1;
+    osvi.wServicePackMajor = 2;
+    osvi.wServicePackMinor = 0;
+
+    // Initialize the condition mask.
+
+    VER_SET_CONDITION(dwlConditionMask, VER_MAJORVERSION, op);
+    VER_SET_CONDITION(dwlConditionMask, VER_MINORVERSION, op);
+    VER_SET_CONDITION(dwlConditionMask, VER_SERVICEPACKMAJOR, op);
+    VER_SET_CONDITION(dwlConditionMask, VER_SERVICEPACKMINOR, op);
+
+    // Perform the test.
+
+    return VerifyVersionInfo(
+        &osvi,
+        VER_MAJORVERSION | VER_MINORVERSION |
+        VER_SERVICEPACKMAJOR | VER_SERVICEPACKMINOR,
+        dwlConditionMask);
+}
+
+void GetApplicationVersion(TCHAR* version)
+{
+    TCHAR szModPath[MAX_PATH] = { 0 };
+    DWORD dwHandle;
+    DWORD dwSize;
+    BYTE* pBlock;
+    TCHAR SubBlock[MAX_PATH] = { 0 };
+    TCHAR* buffer;
+    UINT cbTranslate;
+
+    if (!version)
+        return;
+
+    *version = 0;
+    GetModuleFileName(NULL, szModPath, sizeof(TCHAR) * (MAX_PATH - 1));
+    dwSize = GetFileVersionInfoSize(szModPath, &dwHandle);
+    if (dwSize > 0)
+    {
+        pBlock = (BYTE*)malloc(dwSize);
+        memset(pBlock, 0, dwSize);
+        if (GetFileVersionInfo(szModPath, dwHandle, dwSize, pBlock))
+        {
+            struct LANGANDCODEPAGE {
+                WORD wLanguage;
+                WORD wCodePage;
+            } *lpTranslate;
+
+            // Read the list of languages and code pages.
+            if (VerQueryValue(pBlock, _T("\\VarFileInfo\\Translation"), (LPVOID*)&lpTranslate, &cbTranslate))
+            {
+                // Read the file description for each language and code page.
+                _stprintf(SubBlock, _T("\\StringFileInfo\\%04x%04x\\FileVersion"), lpTranslate->wLanguage, lpTranslate->wCodePage);
+                if (VerQueryValue(pBlock, SubBlock, (LPVOID*)&buffer, &cbTranslate))
+                {
+                    _tcscpy(version, buffer);
+                }
+            }
+        }
+        free(pBlock);
+    }
+}
+
+// return: 1, TRUE, 0, FALSE
+int memvcmp(void *memory, unsigned char val, unsigned int size)
+{
+    unsigned char *mm = (unsigned char*)memory;
+    return (*mm == val) && memcmp(mm, mm + 1, size - 1) == 0;
 }

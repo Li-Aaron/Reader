@@ -10,13 +10,19 @@ public:
     TextBook();
     virtual ~TextBook();
 
-protected:
+public:
     virtual book_type_t GetBookType(void);
-    virtual bool ParserBook(void);
-    bool ReadBook(void);
-    bool ParserChapters(void);
-    bool GetLine(wchar_t* text, int len, int* line_size);
-    bool IsChapter(wchar_t* text, int len);
+    virtual BOOL SaveBook(HWND hWnd);
+    virtual BOOL UpdateChapters(int offset);
+
+protected:
+    virtual BOOL ParserBook(HWND hWnd);
+    BOOL ReadBook(void);
+    BOOL ParserChapters(void);
+    BOOL ParserChaptersDefault(void);
+    BOOL ParserChaptersKeyword(void);
+    BOOL ParserChaptersRegex(void);
+    BOOL IsChapter(wchar_t* text, int len);
 
 protected:
     static wchar_t m_ValidChapter[];
