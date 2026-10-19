@@ -37,11 +37,10 @@ jobs:
       - name: Package
         shell: pwsh
         run: |
-          $ver = (Get-Item 'Reader.exe' -ErrorAction SilentlyContinue).VersionInfo.FileVersion
-          if (-not $ver) { $ver = (Get-Item "${{ matrix.platform }}\Release\Reader.exe").VersionInfo.FileVersion }
+          $exe = if ('${{ matrix.platform }}' -eq 'x86') { 'Release\Reader.exe' } else { 'x64\Release\Reader.exe' }
           $name = "Reader_${{ matrix.platform }}"
           New-Item -ItemType Directory -Force dist | Out-Null
-          Compress-Archive -Path "${{ matrix.platform }}\Release\Reader.exe", "readme.txt" -DestinationPath "dist\$name.zip"
+          Compress-Archive -Path $exe, "readme.txt" -DestinationPath "dist\$name.zip"
           echo "zip=$name.zip" >> $env:GITHUB_OUTPUT
         id: package
 
