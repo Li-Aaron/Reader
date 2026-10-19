@@ -14,7 +14,6 @@
 Upgrade::Upgrade(void)
     : m_IngoreVersion(NULL)
     , m_ChkTime(NULL)
-    , m_proxy(NULL)
     , m_cb(NULL)
     , m_param(NULL)
     , m_hThread(NULL)
@@ -30,11 +29,6 @@ Upgrade::Upgrade(void)
 Upgrade::~Upgrade(void)
 {
     CancelRequest();
-}
-
-void Upgrade::SetProxy(proxy_t *proxy)
-{
-    m_proxy = proxy;
 }
 
 void Upgrade::SetIngoreVersion(TCHAR *ingorev)
@@ -196,9 +190,7 @@ unsigned __stdcall Upgrade::DoRequest(void* param)
     HINTERNET hConnect = NULL;
     HINTERNET hRequest = NULL;
     WCHAR szHost[256] = { 0 };
-    WCHAR szProxy[256] = { 0 };
     URL_COMPONENTS urlComp = { 0 };
-    WINHTTP_PROXY_INFO ProxyInfo = { 0 };
     BOOL bResults = FALSE;
     DWORD dwSize = 0;
     DWORD dwDownloaded = 0;
@@ -248,37 +240,6 @@ unsigned __stdcall Upgrade::DoRequest(void* param)
 
     if (_this->m_bForceKill)
         goto fail;
-
-    if (_this->m_proxy && _this->m_proxy->enable)
-    {
-        swprintf_s(szProxy, L"%s:%d", _this->m_proxy->addr, _this->m_proxy->port);
-        ProxyInfo.dwAccessType = WINHTTP_ACCESS_TYPE_NAMED_PROXY;
-        ProxyInfo.lpszProxy = szProxy;
-        ProxyInfo.lpszProxyBypass = (WCHAR*)L"";
-        WinHttpSetOption(hRequest,
-            WINHTTP_OPTION_PROXY,
-            &ProxyInfo,
-            sizeof(WINHTTP_PROXY_INFO));
-
-        if (_this->m_bForceKill)
-            goto fail;
-
-        WinHttpSetOption(hRequest,
-            WINHTTP_OPTION_PROXY_USERNAME,
-            (LPVOID)_this->m_proxy->user,
-            (int)wcslen(_this->m_proxy->user));
-
-        if (_this->m_bForceKill)
-            goto fail;
-
-        WinHttpSetOption(hRequest,
-            WINHTTP_OPTION_PROXY_PASSWORD,
-            (LPVOID)_this->m_proxy->pass,
-            (int)wcslen(_this->m_proxy->pass));
-
-        if (_this->m_bForceKill)
-            goto fail;
-    }
 
     // ssl
     dwFlags = SECURITY_FLAG_IGNORE_UNKNOWN_CA |

@@ -108,15 +108,6 @@ typedef struct bg_image_t
     int mode; // bg_image_mode_t
 } bg_image_t;
 
-typedef struct proxy_t
-{
-    BOOL enable;
-    WCHAR addr[64];
-    int port;
-    WCHAR user[64];
-    WCHAR pass[64];
-} proxy_t;
-
 typedef struct chapter_rule_t
 {
     int rule; // 0: default, 1: keyword, 2: regex
@@ -170,7 +161,6 @@ typedef struct header_t
     int autopage_mode; // auto_page_mode_t
     bg_image_t bg_image;
     UINT uElapse;
-    proxy_t proxy;
     TCHAR ingore_version[16];
     u32 checkver_time;
     int hide_taskbar;

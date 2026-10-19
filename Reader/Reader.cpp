@@ -9,7 +9,6 @@
 #include "Editctrl.h"
 #include "Advset.h"
 #include "DPIAwareness.h"
-#include "barcode.h"
 #include "DisplaySet.h"
 #if ENABLE_TAG
 #include "tagset.h"
@@ -43,7 +42,6 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    Setting(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    Proxy(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    JumpProgress(HWND, UINT, WPARAM, LPARAM);
 #ifdef ENABLE_NETWORK
 INT_PTR CALLBACK    UpgradeProc(HWND, UINT, WPARAM, LPARAM);
@@ -387,9 +385,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             break;
 #endif
-        case IDM_PROXY:
-            DialogBox(hInst, MAKEINTRESOURCE(IDD_PROXY), hWnd, Proxy);
-            break;
         case IDM_DEFAULT:
             OnRestoreDefault(hWnd, message, wParam, lParam);
             break;
@@ -497,6 +492,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     TreeView_SelectItem(((LPNMHDR)lParam)->hwndFrom, hItem);
             }
             break;
+        case TVN_KEYDOWN:
+            // Del key deletes the selected book mark
+            if (((LPNMHDR)lParam)->hwndFrom == _hTreeMark
+                && IsWindowVisible(_hTreeMark)
+                && ((LPNMTVKEYDOWN)lParam)->wVKey == VK_DELETE)
+            {
+                HTREEITEM Selected;
+                TVITEM item;
+
+                Selected = TreeView_GetSelection(_hTreeMark);
+                if (Selected)
+                {
+                    item.mask       = TVIF_PARAM;
+                    item.hItem      = Selected;
+                    TreeView_GetItem(_hTreeMark, &item);
+                    if (_Cache.del_mark(_item, (int)item.lParam))
+                    {
+                        Save(hWnd);
+                        OnUpdateBookMark(hWnd);
+                    }
+                }
+            }
+            break;
         case NM_DBLCLK:
             if (((LPNMHDR)lParam)->hwndFrom == _hTreeMark)
             {
@@ -549,7 +567,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         TreeView_GetItem(_hTreeMark, &item);
 
                         if (_Cache.del_mark(_item, (int)item.lParam))
+                        {
+                            Save(hWnd);
                             OnUpdateBookMark(hWnd);
+                        }
                     }
                 }
             }
@@ -1091,303 +1112,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
     return 0;
 }
-
-Gdiplus::Bitmap *LoadBarCodeAlipay(void)
-{
-    static Gdiplus::Bitmap *image = NULL;
-    IStream* pStream = NULL;
-    void *buffer = NULL;
-    HGLOBAL hMemory = NULL;
-    static int i = 0;
-
-    if (!image)
-    {
-        // decrypto
-        for (; i<BARCODE_ALIPAY_LENGHT; i++)
-            barcode_alipay[i] ^= CRYPTO_KEY;
-        hMemory = ::GlobalAlloc(GMEM_MOVEABLE, BARCODE_ALIPAY_LENGHT);
-        if (!hMemory)
-        {
-            return image;
-        }
-        buffer = ::GlobalLock(hMemory);
-        if (!buffer)
-        {
-            ::GlobalFree(hMemory);
-            return image;
-        }
-        CopyMemory(buffer, barcode_alipay, BARCODE_ALIPAY_LENGHT);
-        if (::CreateStreamOnHGlobal(hMemory, FALSE, &pStream) == S_OK)
-        {
-            image = Gdiplus::Bitmap::FromStream(pStream);
-            pStream->Release();
-        }
-        ::GlobalUnlock(hMemory);
-        //::GlobalFree(hMemory);
-    }
-
-    if (!image || Gdiplus::Ok != image->GetLastStatus())
-    {
-        delete image;
-        image = NULL;
-        ::GlobalFree(hMemory);
-    }
-
-    return image;
-}
-
-Gdiplus::Bitmap* LoadBarCodeWechat(void)
-{
-    static Gdiplus::Bitmap* image = NULL;
-    IStream* pStream = NULL;
-    void* buffer = NULL;
-    HGLOBAL hMemory = NULL;
-    static int i = 0;
-
-    if (!image)
-    {
-        for (; i<BARCODE_WECHAT_LENGHT; i++)
-            barcode_wechat[i] ^= CRYPTO_KEY;
-        hMemory = ::GlobalAlloc(GMEM_MOVEABLE, BARCODE_WECHAT_LENGHT);
-        if (!hMemory)
-        {
-            return image;
-        }
-        buffer = ::GlobalLock(hMemory);
-        if (!buffer)
-        {
-            ::GlobalFree(hMemory);
-            return image;
-        }
-        CopyMemory(buffer, barcode_wechat, BARCODE_WECHAT_LENGHT);
-        if (::CreateStreamOnHGlobal(hMemory, FALSE, &pStream) == S_OK)
-        {
-            image = Gdiplus::Bitmap::FromStream(pStream);
-            pStream->Release();
-        }
-        ::GlobalUnlock(hMemory);
-        //::GlobalFree(hMemory);
-    }
-
-    if (!image || Gdiplus::Ok != image->GetLastStatus())
-    {
-        delete image;
-        image = NULL;
-        ::GlobalFree(hMemory);
-    }
-
-    return image;
-}
-
-Gdiplus::Bitmap* LoadBarCodeMP(void)
-{
-    static Gdiplus::Bitmap* image = NULL;
-    IStream* pStream = NULL;
-    void* buffer = NULL;
-    HGLOBAL hMemory = NULL;
-    static int i = 0;
-
-    if (!image)
-    {
-        for (; i<BARCODE_MP_LENGHT; i++)
-            barcode_mp[i] ^= CRYPTO_KEY;
-        hMemory = ::GlobalAlloc(GMEM_MOVEABLE, BARCODE_MP_LENGHT);
-        if (!hMemory)
-        {
-            return image;
-        }
-        buffer = ::GlobalLock(hMemory);
-        if (!buffer)
-        {
-            ::GlobalFree(hMemory);
-            return image;
-        }
-        CopyMemory(buffer, barcode_mp, BARCODE_MP_LENGHT);
-        if (::CreateStreamOnHGlobal(hMemory, FALSE, &pStream) == S_OK)
-        {
-            image = Gdiplus::Bitmap::FromStream(pStream);
-            pStream->Release();
-        }
-        ::GlobalUnlock(hMemory);
-        //::GlobalFree(hMemory);
-    }
-
-    if (!image || Gdiplus::Ok != image->GetLastStatus())
-    {
-        delete image;
-        image = NULL;
-        ::GlobalFree(hMemory);
-    }
-
-    return image;
-}
-
-INT_PTR CALLBACK RewardProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    Gdiplus::Bitmap *image_alipay = NULL;
-    Gdiplus::Bitmap* image_wechat = NULL;
-    static RECT rc_alipay;
-    static RECT rc_wechat;
-    static RECT client;
-    double dpiscaled;
-
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        image_alipay = LoadBarCodeAlipay();
-        image_wechat = LoadBarCodeWechat();
-        if (image_alipay && image_wechat)
-        {
-            // calc alipay image
-            dpiscaled = GetDpiScaled();
-            if (dpiscaled <= 1.0f)
-            {
-                ::SetRect(&rc_alipay, 0, 0, (int)(image_alipay->GetWidth()/2.0f), (int)(image_alipay->GetHeight()/2.0f));
-            }
-            else if (dpiscaled <= 1.25f)
-            {
-                ::SetRect(&rc_alipay, 0, 0, (int)(image_alipay->GetWidth()/3.0f*2.0f), (int)(image_alipay->GetHeight()/3.0f*2.0f));
-            }
-            else
-            {
-                ::SetRect(&rc_alipay, 0, 0, image_alipay->GetWidth(), image_alipay->GetHeight());
-            }
-
-            // calc wechat image
-            if (image_wechat)
-            {
-                rc_wechat.top = rc_alipay.top;
-                rc_wechat.bottom = rc_alipay.bottom;
-                rc_wechat.left = rc_alipay.right + 2;
-                rc_wechat.right = (rc_wechat.bottom - rc_wechat.top) * image_wechat->GetWidth() / image_wechat->GetHeight() + rc_wechat.left;
-            }
-
-            // calc client
-            client.top = rc_alipay.top;
-            client.bottom = rc_alipay.bottom;
-            client.left = rc_alipay.left;
-            client.right = rc_wechat.right;
-
-            AdjustWindowRect(&client, (DWORD)GetWindowLongPtr(hDlg, GWL_STYLE), FALSE);
-            SetWindowPos(hDlg, NULL, client.left, client.top, client.right-client.left, client.bottom-client.top, SWP_NOMOVE);
-        }
-        return (INT_PTR)TRUE;
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        break;
-    case WM_PAINT:
-        {
-            HDC hdc;
-            PAINTSTRUCT ps;
-            Gdiplus::Graphics *graphics = NULL;
-            Gdiplus::Rect rect;
-            
-            hdc = BeginPaint(hDlg, &ps);
-            // TODO: Add any drawing code here...
-            image_alipay = LoadBarCodeAlipay();
-            image_wechat = LoadBarCodeWechat();
-
-            // draw image
-            graphics = new Gdiplus::Graphics(hdc);
-            if (graphics)
-            {
-                rect.X = 0;
-                rect.Y = 0;
-                rect.Width = rc_alipay.right- rc_alipay.left;
-                rect.Height = rc_alipay.bottom- rc_alipay.top;
-                graphics->SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
-                graphics->DrawImage(image_alipay, rect, 0, 0, image_alipay->GetWidth(), image_alipay->GetHeight(), Gdiplus::UnitPixel);
-                rect.X = rc_wechat.left;
-                rect.Y = 0;
-                rect.Width = rc_wechat.right - rc_wechat.left;
-                rect.Height = rc_wechat.bottom - rc_wechat.top;
-                graphics->DrawImage(image_wechat, rect, 0, 0, image_wechat->GetWidth(), image_wechat->GetHeight(), Gdiplus::UnitPixel);
-                delete graphics;
-            }
-
-            EndPaint(hDlg, &ps);
-            return (INT_PTR)TRUE;
-        }
-        break;
-    case WM_LBUTTONDOWN:
-        EndDialog(hDlg, LOWORD(wParam));
-        return (INT_PTR)TRUE;
-        break;
-    default:
-        break;
-    }
-    return (INT_PTR)FALSE;
-}
-
-INT_PTR CALLBACK FollowProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    Gdiplus::Bitmap* image_mp = NULL;
-    static RECT rc_mp;
-    double dpiscaled;
-
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        image_mp = LoadBarCodeMP();
-        dpiscaled = GetDpiScaled();
-        if (image_mp)
-        {
-            // calc mp image
-            ::SetRect(&rc_mp, 0, 0, (int)(image_mp->GetWidth() * dpiscaled), (int)(image_mp->GetHeight() * dpiscaled));
-
-            AdjustWindowRect(&rc_mp, (DWORD)GetWindowLongPtr(hDlg, GWL_STYLE), FALSE);
-            SetWindowPos(hDlg, NULL, rc_mp.left, rc_mp.top, rc_mp.right - rc_mp.left, rc_mp.bottom - rc_mp.top, SWP_NOMOVE);
-        }
-        return (INT_PTR)TRUE;
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        break;
-    case WM_PAINT:
-    {
-        HDC hdc;
-        PAINTSTRUCT ps;
-        Gdiplus::Graphics* graphics = NULL;
-        Gdiplus::Rect rect;
-
-        hdc = BeginPaint(hDlg, &ps);
-        // TODO: Add any drawing code here...
-        image_mp = LoadBarCodeMP();
-
-        // draw image
-        graphics = new Gdiplus::Graphics(hdc);
-        if (graphics)
-        {
-            rect.X = 0;
-            rect.Y = 0;
-            rect.Width = rc_mp.right - rc_mp.left;
-            rect.Height = rc_mp.bottom - rc_mp.top;
-            graphics->SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
-            graphics->DrawImage(image_mp, rect, 0, 0, image_mp->GetWidth(), image_mp->GetHeight(), Gdiplus::UnitPixel);
-            delete graphics;
-        }
-
-        EndPaint(hDlg, &ps);
-        return (INT_PTR)TRUE;
-    }
-    break;
-    case WM_LBUTTONDOWN:
-        EndDialog(hDlg, LOWORD(wParam));
-        return (INT_PTR)TRUE;
-        break;
-    default:
-        break;
-    }
-    return (INT_PTR)FALSE;
-}
-
 // Message handler for about box.
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -1401,7 +1125,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     {
     case WM_INITDIALOG:
         GetApplicationVersion(version);
-        _sntprintf(info, 256, _T("Reader, Version %s"), version);
+        _sntprintf(info, 256, _T("Reader (aaron-mod), Version %s"), version);
         SetDlgItemText(hDlg, IDC_STATIC_VERSION, info);
         return (INT_PTR)TRUE;
     case WM_COMMAND:
@@ -1409,20 +1133,6 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         {
             EndDialog(hDlg, LOWORD(wParam));
             return (INT_PTR)TRUE;
-        }
-        else if (LOWORD(wParam) == IDC_BUTTON_REWARD)
-        {
-            if (LoadBarCodeAlipay() && LoadBarCodeWechat())
-            {
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_REWARD), hDlg, RewardProc);
-            }
-        }
-        else if (LOWORD(wParam) == IDC_BUTTON_FOLLOW)
-        {
-            if (LoadBarCodeMP())
-            {
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_REWARD), hDlg, FollowProc);
-            }
         }
         break;
     case WM_LBUTTONDOWN:
@@ -1558,115 +1268,6 @@ INT_PTR CALLBACK Setting(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         case IDC_CHECK_TRAY:
             break;
         default:
-            break;
-        }
-        break;
-    default:
-        break;
-    }
-    return (INT_PTR)FALSE;
-}
-
-INT_PTR CALLBACK Proxy(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    LRESULT res;
-    BOOL bResult = FALSE;
-    int value = 0;
-    TCHAR buf[256] = {0};
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        LoadString(hInst, IDS_DISABLE_PROXY, buf, 256);
-        SendMessage(GetDlgItem(hDlg, IDC_COMBO_PROXY), CB_ADDSTRING, 0, (LPARAM)buf);
-        LoadString(hInst, IDS_ENABLE_PROXY, buf, 256);
-        SendMessage(GetDlgItem(hDlg, IDC_COMBO_PROXY), CB_ADDSTRING, 0, (LPARAM)buf);
-        SendMessage(GetDlgItem(hDlg, IDC_COMBO_PROXY), CB_SETCURSEL, _header->proxy.enable ? 1 : 0, NULL);
-        SetWindowText(GetDlgItem(hDlg, IDC_EDIT_PROXY_ADDR), _header->proxy.addr);
-        SetWindowText(GetDlgItem(hDlg, IDC_EDIT_PROXY_USER), _header->proxy.user);
-        SetWindowText(GetDlgItem(hDlg, IDC_EDIT_PROXY_PASS), _header->proxy.pass);
-        if (_header->proxy.port == 0)
-            SetWindowText(GetDlgItem(hDlg, IDC_EDIT_PROXY_PORT), _T(""));
-        else
-            SetDlgItemInt(hDlg, IDC_EDIT_PROXY_PORT, _header->proxy.port, TRUE);
-        if (_header->proxy.enable)
-        {
-            EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_ADDR), TRUE);
-            EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_PORT), TRUE);
-            EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_USER), TRUE);
-            EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_PASS), TRUE);
-        }
-        else
-        {
-            EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_ADDR), FALSE);
-            EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_PORT), FALSE);
-            EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_USER), FALSE);
-            EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_PASS), FALSE);
-        }
-        return (INT_PTR)TRUE;
-
-    case WM_COMMAND:
-        switch (LOWORD(wParam))
-        {
-        case IDOK:
-            GetWindowText(GetDlgItem(hDlg, IDC_EDIT_PROXY_PORT), buf, 64-1);
-            if (buf[0])
-            {
-                value = GetDlgItemInt(hDlg, IDC_EDIT_PROXY_PORT, &bResult, FALSE);
-                if (!bResult || value <= 0 || value >= 0xFFFF)
-                {
-                    MessageBox_(hDlg, IDS_INVALID_PORT, IDS_ERROR, MB_OK|MB_ICONERROR);
-                    return (INT_PTR)TRUE;
-                }
-                _header->proxy.port = value;
-            }
-            else
-            {
-                _header->proxy.port = 0;
-            }
-
-            res = SendMessage(GetDlgItem(hDlg, IDC_COMBO_PROXY), CB_GETCURSEL, 0, NULL);
-            if (res == 1)
-            {
-                _header->proxy.enable = TRUE;
-            }
-            else
-            {
-                _header->proxy.enable = FALSE;
-            }
-            GetWindowText(GetDlgItem(hDlg, IDC_EDIT_PROXY_ADDR), buf, 64-1);
-            wcscpy(_header->proxy.addr, buf);
-            GetWindowText(GetDlgItem(hDlg, IDC_EDIT_PROXY_USER), buf, 64-1);
-            wcscpy(_header->proxy.user, buf);
-            GetWindowText(GetDlgItem(hDlg, IDC_EDIT_PROXY_PASS), buf, 64-1);
-            wcscpy(_header->proxy.pass, buf);
-            Save(GetParent(hDlg));
-#ifdef ENABLE_NETWORK
-            // update proxy to upgrade checker
-            _Upgrade.SetProxy(&_header->proxy);
-#endif
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-            break;
-        case IDCANCEL:
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-            break;
-        case IDC_COMBO_PROXY:
-            res = SendMessage(GetDlgItem(hDlg, IDC_COMBO_PROXY), CB_GETCURSEL, 0, NULL);
-            if (res == 0)
-            {
-                EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_ADDR), FALSE);
-                EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_PORT), FALSE);
-                EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_USER), FALSE);
-                EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_PASS), FALSE);
-            }
-            else
-            {
-                EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_ADDR), TRUE);
-                EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_PORT), TRUE);
-                EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_USER), TRUE);
-                EnableWindow(GetDlgItem(hDlg, IDC_EDIT_PROXY_PASS), TRUE);
-            }
             break;
         }
         break;
@@ -3382,10 +2983,6 @@ void RemoveMenus(HWND hWnd, BOOL redraw)
 
     hMenu = GetMenu(hWnd);
 
-#ifndef ENABLE_NETWORK
-    RemoveMenuById(hMenu, TRUE, IDM_PROXY);
-#endif
-
 #if !ENABLE_TAG
     RemoveMenuById(hMenu, FALSE, IDM_TAGSET);
 #endif
@@ -3596,8 +3193,7 @@ void ResetAutoPage(HWND hWnd)
 #ifdef ENABLE_NETWORK
 void CheckUpgrade(HWND hWnd)
 {
-    // set proxy & check upgrade
-    _Upgrade.SetProxy(&_header->proxy);
+    // check upgrade
     _Upgrade.SetIngoreVersion(_header->ingore_version);
     _Upgrade.SetCheckVerTime(&_header->checkver_time);
     _Upgrade.Check(UpgradeCallback, hWnd);

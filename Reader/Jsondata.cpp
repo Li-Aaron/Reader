@@ -290,45 +290,6 @@ public:
     }
 };
 
-class json_proxy_t
-{
-    cJSON* enable;
-    cJSON* addr;
-    cJSON* port;
-    cJSON* user;
-    cJSON* pass;
-public:
-    json_proxy_t(cJSON* parent, proxy_t* data)
-    {
-        enable = cJSON_AddNumberToObject(parent, "enable", data->enable);
-        port = cJSON_AddNumberToObject(parent, "port", data->port);
-        addr = cJSON_AddStringToObject(parent, "addr", Utf16ToUtf8(data->addr));
-        user = cJSON_AddStringToObject(parent, "user", Utf16ToUtf8(data->user));
-        pass = cJSON_AddStringToObject(parent, "pass", Utf16ToUtf8(data->pass));
-    }
-    json_proxy_t(cJSON* parent) // for json parser
-    {
-        enable = cJSON_GetObjectItem(parent, "enable");
-        port = cJSON_GetObjectItem(parent, "port");
-        addr = cJSON_GetObjectItem(parent, "addr");
-        user = cJSON_GetObjectItem(parent, "user");
-        pass = cJSON_GetObjectItem(parent, "pass");
-    }
-    void GetData(proxy_t* data)
-    {
-        if (enable)
-            data->enable = enable->valueint;
-        if (port)
-            data->port = port->valueint;
-        if (addr)
-            wcscpy(data->addr, Utf8ToUtf16(addr->valuestring));
-        if (user)
-            wcscpy(data->user, Utf8ToUtf16(user->valuestring));
-        if (pass)
-            wcscpy(data->pass, Utf8ToUtf16(pass->valuestring));
-    }
-};
-
 class json_keyset_t
 {
     cJSON* value;
@@ -478,7 +439,6 @@ class json_header_t
     json_font_t* font;
     json_font_t* font_title;
     json_bg_image_t* bg_image;
-    json_proxy_t* proxy;
     json_chapter_rule_t* chapter_rule;
 #if ENABLE_TAG
     cJSON* tag_count;
@@ -571,10 +531,6 @@ public:
         cJSON_AddItemToObject(parent, "bg_image", item);
 
         item = cJSON_CreateObject();
-        proxy = new json_proxy_t(item, &(data->proxy));
-        cJSON_AddItemToObject(parent, "proxy", item);
-
-        item = cJSON_CreateObject();
         chapter_rule = new json_chapter_rule_t(item, &(data->chapter_rule));
         cJSON_AddItemToObject(parent, "chapter_rule", item);
 
@@ -598,7 +554,6 @@ public:
         , font(NULL)
         , font_title(NULL)
         , bg_image(NULL)
-        , proxy(NULL)
         , chapter_rule(NULL)
     {
         cJSON* item;
@@ -681,10 +636,6 @@ public:
         if (item)
             bg_image = new json_bg_image_t(item);
 
-        item = cJSON_GetObjectItem(parent, "proxy");
-        if (item)
-            proxy = new json_proxy_t(item);
-
         item = cJSON_GetObjectItem(parent, "chapter_rule");
         if (item)
             chapter_rule = new json_chapter_rule_t(item);
@@ -723,8 +674,6 @@ public:
             delete font_title;
         if (bg_image)
             delete bg_image;
-        if (proxy)
-            delete proxy;
         if (chapter_rule)
             delete chapter_rule;
         for (i = 0; i < KI_MAXCOUNT; i++)
@@ -844,8 +793,6 @@ public:
             font_title->GetData(&(data->font_title));
         if (bg_image)
             bg_image->GetData(&(data->bg_image));
-        if (proxy)
-            proxy->GetData(&(data->proxy));
         if (chapter_rule)
             chapter_rule->GetData(&(data->chapter_rule));
 

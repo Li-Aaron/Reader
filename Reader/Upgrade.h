@@ -27,7 +27,6 @@ public:
     ~Upgrade(void);
 
 public:
-    void SetProxy(proxy_t *proxy);
     void SetIngoreVersion(TCHAR *ingorev);
     void SetCheckVerTime(u32 *chktime);
     void Check(upgrade_callback_t cb, void *param);
@@ -44,7 +43,6 @@ private:
     TCHAR *m_IngoreVersion;
     u32 *m_ChkTime;
     json_item_data_t m_VersionInfo;
-    proxy_t* m_proxy;
     upgrade_callback_t m_cb;
     void* m_param;
     HANDLE m_hThread;
