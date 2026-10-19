@@ -207,6 +207,7 @@
     <ClCompile Include="zlib_cdecl_bridge.c" />
     <ClCompile Include="Advset.cpp" />
     <ClCompile Include="Book.cpp" />
+    <ClCompile Include="AaronMod.cpp" />
     <ClCompile Include="AutoPage.cpp" />
     <ClCompile Include="Dialogs.cpp" />
     <ClCompile Include="Globals.cpp" />
