@@ -1,23 +1,8 @@
 @echo off
 rem ===========================================================================
-rem  build-local.bat  -  local replacement for rebuild.bat
+rem  build-local.bat  -  local build script (aaron branch)
 rem
-rem  Why it exists (rebuild.bat only works on the author's own machine):
-rem   * it hardcodes
-rem       D:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\...
-rem     and calls devenv, so nothing is found on a normal installation;
-rem   * the project asks for PlatformToolset v142 and Windows SDK 10.0.17763.0,
-rem     which a current Visual Studio usually does not have installed;
-rem   * it reads the file version with wmic, which no longer exists on
-rem     Windows 11 24H2+ (build 26000+), so it always ends in "ERROR: failed.";
-rem   * tool\7z.exe is the full 7-Zip console build and needs tool\7z.dll,
-rem     which is NOT part of this source tree, so packing fails with
-rem     "Can't load module: 7z.dll".
-rem
-rem  This script finds the Visual Studio / Windows SDK you actually have,
-rem  builds Release x86 + x64 and packs them into publish\.
-rem
-rem  Overrides:  set TOOLSET=v142     (default v143)
+rem  Finds the installed Visual Studio / Windows SDK, builds Release x86 + x64`r`nrem  and packs them into publish\ (zip when no 7-Zip is installed).`r`nrem`r`nrem  Overrides:  set TOOLSET=v142     (default v143)
 rem ===========================================================================
 setlocal enabledelayedexpansion
 set "work_dir=%~dp0"

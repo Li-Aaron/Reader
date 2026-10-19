@@ -25,3 +25,10 @@ dump.html
 # 本地测试脚手架
 /_probe/
 /test_https.obj
+
+# IDE / build intermediates
+*.aps
+*.user
+Reader/x64/
+Reader/Release/
+Reader/Debug/
