@@ -9,7 +9,7 @@
 **本分支与上游的差异**（相对 upstream/master）：
 - 已同步上游全部本地阅读功能（v2.0.0.x：显示设置/取色器/段距/压缩空行/章前分页、mobi、高DPI、中文菜单、按键自定义、编辑模式、书签、托盘等）。
 - **移除了在线小说（书源）与 Web 阅读（legado 局域网同步）功能**：相关源文件、菜单、对话框、`book_source_t`/`.ol`/`.web` 逻辑均已删除；依赖库 libhttps/openssl/wolfssl 已从工程和仓库移除。
-- **保留版本更新检查**（`ENABLE_NETWORK` 仍定义）：Upgrade 已从 libhttps 改回系统 WinHTTP 实现（Upgrade.cpp）。
+- **完全离线版**：vcxproj 已不定义 `ENABLE_NETWORK`，版本更新检查不再编译；Upgrade.cpp/Upgrade.h 与 Reader.cpp 中相关代码用 `#ifdef ENABLE_NETWORK` 包裹保留（源码级），未来想恢复版本检查只需在 vcxproj 加回该宏。
 - **已移除代理设置**（在线功能删除后无用）：Proxy 对话框/菜单/`proxy_t`/序列化字段均不存在。
 - 关于对话框只保留原作者（binbyu）、aaron 分支维护者与两个版本号信息（打赏/公众号二维码已删，barcode.h 已移除）。
 - 本地功能新增：Ctrl+H 隐藏边框（Reader.cpp WM_KEYDOWN 硬编码，与按键系统并存）、鼠标侧键4/5翻页（WM_XBUTTONDOWN）、书签列表 Del 键/右键删除（删除后立即落盘）。
@@ -46,7 +46,7 @@ git diff --stat aaron upstream/master       # 总体差异（会包含我们删�
   - `opensrc/zlib/lib`、`opensrc/libxml2/lib`、`opensrc/libmobi/lib`（预编译静态库；头文件在对应 `inc/`）
   - `opensrc/miniz`（源码，epub/mobi 解压）
   - 系统库：gdiplus、winhttp（代码内 `#pragma comment` 自动链接）
-- 关键宏：`ENABLE_NETWORK`（vcxproj 预处理器定义；当前仍开启=保留版本检查。若要做完全无网络版，删掉该宏并保留 `#ifndef ENABLE_NETWORK` 分支即可）；`ZLIB_WINAPI`、`LIBXML_STATIC`、`CJSON_HIDE_SYMBOLS`。
+- 关键宏：`ENABLE_NETWORK`（**当前未定义** = 完全离线版；Upgrade/版本检查代码不编译，`#ifndef ENABLE_NETWORK` 分支生效）；`ZLIB_WINAPI`、`LIBXML_STATIC`、`CJSON_HIDE_SYMBOLS`。
 - 预编译头：本项目不用 PCH，各 .cpp 自行 include（framework.h 为公共头）。
 - 源码为 UTF-8 无 BOM 且含中文注释，工程已设 `/source-charset:utf-8`，勿改。
 - `tool/Upgrader` 是独立的 MFC 对话框小程序（下载新版本用），不在 Reader.sln 内；`tool/Upgrader.exe` 是预编译好的。
@@ -65,7 +65,7 @@ Reader.cpp (WinMain + WndProc + 全部 On* 消息处理，程序主干)
  ├─ Cache (Cache.cpp)            进度与设置持久化：JSON 明文(Jsondata.cpp) + 简单加密
  │                               存 .cache.dat（隐藏文件），header_t + item_t[]
  ├─ Jsondata (Jsondata.cpp)      header_t/item_t <-> cJSON 序列化（书源字段已删）
- ├─ Upgrade (Upgrade.cpp)        WinHTTP 后台线程访问 version.json 检查新版本
+ ├─ Upgrade (Upgrade.cpp)        版本检查（已停用：ENABLE_NETWORK 未定义时不编译；WinHTTP 实现）
  ├─ Keyset (Keyset.cpp)          快捷键/热键自定义（g_Keysets 表 + 设置对话框）
  ├─ DisplaySet/Advset            显示设置 / 高级设置(目录解析规则) 对话框
  ├─ Editctrl (Editctrl.cpp)      编辑模式（当页文本编辑保存）
@@ -90,13 +90,12 @@ Reader.cpp (WinMain + WndProc + 全部 On* 消息处理，程序主干)
 | `Reader/MobiBook.cpp` | mobi 解析 |
 | `Reader/Page.cpp` | 分页与排版核心算法（v2.0 重写） |
 | `Reader/Cache.cpp` + `Jsondata.cpp` | 设置/进度持久化（.cache.dat，JSON+混淆） |
-| `Reader/Upgrade.cpp` | 版本检查（WinHTTP + version.json + cJSON） |
+| `Reader/Upgrade.cpp` | 版本检查（当前停用，ENABLE_NETWORK 未定义时编译为空） |
 | `Reader/Keyset.cpp` | 按键自定义系统 |
 | `Reader/types.h` | 公共类型、宏、自定义消息、cache 结构 |
 | `Reader/Reader_zh-cn.rc` | 编译进exe的中文资源（Reader.rc 为英文遗留，未编译） |
 | `opensrc/` | 第三方：cjson、miniz（源码）/ zlib、libxml2、libmobi（静态库） |
-| `tool/Upgrader/` | MFC 升级器子项目 |
-| `version.json` | 升级检查服务端数据（github 中转 → 网盘地址） |
+| `tool/Upgrader/` | MFC 升级器子项目（上游已删，仅历史遗留说明） |
 
 ## 编码约定与注意事项
 

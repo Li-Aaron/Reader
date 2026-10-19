@@ -2,8 +2,8 @@
 A win32 txt/epub/mobi file reader
 
 基于 binbyu/Reader 上游最新代码（v2.0.0.x）同步，并按个人需求定制：
-- 保留：本地 txt / epub / mobi 阅读、版本更新检查
-- 移除：在线小说（书源）、Web 阅读（legado 局域网同步）及 libhttps/openssl/wolfssl 依赖
+- 保留：本地 txt / epub / mobi 阅读（**完全离线**，无任何联网功能）
+- 移除：在线小说（书源）、Web 阅读（legado 局域网同步）、版本更新检查及 libhttps/openssl/wolfssl 依赖
 - 本地新增：Ctrl+H 隐藏/显示边框、鼠标侧键4/5翻页
 
 ## 一、快捷键（默认值，可在 菜单 设置 > 按键设置 中自定义）
