@@ -19,11 +19,9 @@
 #ifdef  FD_SETSIZE
 #undef  FD_SETSIZE
 #define FD_SETSIZE  1024
-#else 
+#else
 #define FD_SETSIZE  1024
 #endif
-
-#define ZLIB_ENABLE
 
 typedef struct IUnknown IUnknown;
 #include <objidl.h>
@@ -38,15 +36,9 @@ typedef struct IUnknown IUnknown;
 #pragma comment(lib, "Version.lib")
 
 #ifdef _DEBUG
-#ifdef ZLIB_ENABLE
-#pragma comment(lib, "zlibstatd.lib")
-#endif
 #pragma comment(lib, "libxml2_ad.lib")
 #pragma comment(lib, "libmobid.lib")
 #else
-#ifdef ZLIB_ENABLE
-#pragma comment(lib, "zlibstat.lib")
-#endif
 #pragma comment(lib, "libxml2_a.lib")
 #pragma comment(lib, "libmobi.lib")
 #endif
