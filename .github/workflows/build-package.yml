@@ -1,14 +1,22 @@
-name: Build Reader package
+name: Build Reader
 
 on:
   push:
     branches:
-      - codex/fix-security-and-stability
+      - aaron
+    tags:
+      - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build-x64:
+  build:
     runs-on: windows-2022
+    strategy:
+      matrix:
+        platform: [x86, x64]
 
     steps:
       - name: Check out source
@@ -17,32 +25,48 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build x64 Release
+      - name: Build Release ${{ matrix.platform }}
         shell: pwsh
         run: >-
           msbuild Reader.sln /m /t:Rebuild
           /p:Configuration=Release
-          /p:Platform=x64
+          /p:Platform=${{ matrix.platform }}
           /p:PlatformToolset=v143
           /p:WindowsTargetPlatformVersion=10.0
 
-      - name: Package Reader
-        id: package
+      - name: Package
         shell: pwsh
         run: |
-          $shortSha = '${{ github.sha }}'.Substring(0, 7)
-          $packageName = "Reader_custom_x64_$shortSha"
-          $packageDir = Join-Path $env:RUNNER_TEMP $packageName
-          New-Item -ItemType Directory -Force $packageDir | Out-Null
-          Copy-Item -LiteralPath 'x64\Release\Reader.exe' -Destination $packageDir
-          Copy-Item -LiteralPath 'readme.txt' -Destination $packageDir
-          New-Item -ItemType Directory -Force 'dist' | Out-Null
-          & '.\tool\7z.exe' a "dist\$packageName.7z" "$packageDir\Reader.exe" "$packageDir\readme.txt"
-          "name=$packageName" >> $env:GITHUB_OUTPUT
+          $ver = (Get-Item 'Reader.exe' -ErrorAction SilentlyContinue).VersionInfo.FileVersion
+          if (-not $ver) { $ver = (Get-Item "${{ matrix.platform }}\Release\Reader.exe").VersionInfo.FileVersion }
+          $name = "Reader_${{ matrix.platform }}"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path "${{ matrix.platform }}\Release\Reader.exe", "readme.txt" -DestinationPath "dist\$name.zip"
+          echo "zip=$name.zip" >> $env:GITHUB_OUTPUT
+        id: package
 
-      - name: Upload package
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.package.outputs.name }}
-          path: dist/*.7z
+          name: ${{ steps.package.outputs.zip }}
+          path: dist/*.zip
           if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          gh release create $tag --repo $env:GITHUB_REPOSITORY --title $tag --generate-notes (Get-Item dist\*.zip).FullName
