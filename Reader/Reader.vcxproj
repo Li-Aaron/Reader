@@ -87,7 +87,7 @@
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;CJSON_HIDE_SYMBOLS;LIBXML_STATIC;USE_MINIZ;USE_XMLWRITER;USE_LIBXML2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>false</ConformanceMode>
+      <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>..\opensrc\cjson;..\opensrc\libxml2\inc;..\opensrc\miniz;..\opensrc\libmobi\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
@@ -107,7 +107,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;CJSON_HIDE_SYMBOLS;LIBXML_STATIC;USE_MINIZ;USE_XMLWRITER;USE_LIBXML2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>false</ConformanceMode>
+      <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>..\opensrc\cjson;..\opensrc\libxml2\inc;..\opensrc\miniz;..\opensrc\libmobi\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
@@ -189,21 +189,51 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\opensrc\cjson\cJSON.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\buffer.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\compression.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\debug.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\encryption.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\index.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\memory.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\meta.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\opf.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\parse_rawml.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\randombytes.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\read.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\sha1.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\structure.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\util.c" />
-    <ClCompile Include="..\opensrc\libmobi\src\write.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\buffer.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\compression.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\debug.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\encryption.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\index.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\memory.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\meta.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\opf.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\parse_rawml.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\randombytes.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\read.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\sha1.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\structure.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\util.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\opensrc\libmobi\src\write.c">
+      <DisableSpecificWarnings>4267;4334;4244;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
     <ClCompile Include="zlib_cdecl_bridge.c" />
     <ClCompile Include="Advset.cpp" />
     <ClCompile Include="Book.cpp" />

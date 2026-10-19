@@ -217,7 +217,7 @@ BOOL MobiBook::UnzipBook(MOBIRawml *rawml, MOBIData *m, mobi_t &mobi)
             
             // save to file map
             fdata.data = curr->data;
-            fdata.size = curr->size;
+            fdata.size = (int)curr->size;
             m_flist.insert(std::make_pair(partname, fdata));            
             
             curr = curr->next;
@@ -235,7 +235,7 @@ BOOL MobiBook::UnzipBook(MOBIRawml *rawml, MOBIData *m, mobi_t &mobi)
             
             // save to file map
             fdata.data = curr->data;
-            fdata.size = curr->size;
+            fdata.size = (int)curr->size;
             m_flist.insert(std::make_pair(partname, fdata));                   
             
             curr = curr->next;
@@ -262,7 +262,7 @@ BOOL MobiBook::UnzipBook(MOBIRawml *rawml, MOBIData *m, mobi_t &mobi)
  
                 // save to file map
                 fdata.data = curr->data;
-                fdata.size = curr->size;
+                fdata.size = (int)curr->size;
                 m_flist.insert(std::make_pair(partname, fdata));
 
                 if (file_meta.type == T_OPF)
@@ -745,8 +745,8 @@ BOOL MobiBook::ParserChapters(mobi_t &mobi)
     m_Length = GetCover() ? 1 : 0;
     buffer = (buffer_t *)malloc(mobi.spines.size() * sizeof(buffer_t));
 
-    spines_size = mobi.spines.size();
-    nav_size = mobi.navpoints.size();
+    spines_size = (int)mobi.spines.size();
+    nav_size = (int)mobi.navpoints.size();
 
     for (itspine = mobi.spines.begin(); itspine != mobi.spines.end(); itspine++)
     {
@@ -840,12 +840,12 @@ end:
 
                 
                 //一个part，src经常是part00000.html#0000047473这样的形式，数字是偏移量
-                sepidx = itnav->second->src.find("#");
-                offsetlen = itnav->second->src.size();
+                sepidx = (int)itnav->second->src.find("#");
+                offsetlen = (int)itnav->second->src.size();
                 int refidx = (int)(std::stoi(itnav->second->src.substr(sepidx+1, offsetlen - sepidx-1)) * idx_ratio);
                 
                 int pos = 0, idx = 0;
-                while((idx = buff.find(title, pos)) > 0)  //一般会有三次匹配，头尾都是目录，中间是正文，取第二次的位置；如果多于三次，取第三次的位置
+                while((idx = (int)buff.find(title, pos)) > 0)  //一般会有三次匹配，头尾都是目录，中间是正文，取第二次的位置；如果多于三次，取第三次的位置
                 {
                     navidx.push_back(idx);
                     pos = idx + tlen;
@@ -855,7 +855,7 @@ end:
                 
                 if (!navidx.empty())
                 {
-                    idx = buff.rfind(title);     //从文件尾查找一次
+                    idx = (int)buff.rfind(title);     //从文件尾查找一次
 
                     if (navidx.back() != idx)   // 章节名文字出现超过三次，要猜一下哪个是章节名，哪个是文中出现的
                     {
@@ -939,7 +939,7 @@ BOOL MobiBook::ParserCover(mobi_t &mobi, MOBIData *m)
         }
     }
     
-    pStream = SHCreateMemStream((const BYTE *)record->data, record->size);
+    pStream = SHCreateMemStream((const BYTE *)record->data, (UINT)record->size);
     m_Cover = new Gdiplus::Bitmap(pStream);
     if (m_Cover)
     {

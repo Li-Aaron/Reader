@@ -528,7 +528,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (wParam == (WPARAM)_hTreeMark)
         {
             HTREEITEM Selected;
-            TVITEM item;
             pt.x = LOWORD(lParam); 
             pt.y = HIWORD(lParam);
             Selected = TreeView_GetSelection(_hTreeMark);

@@ -278,7 +278,7 @@ BOOL EpubBook::UnzipBook(void)
 
         // save to file map
         fdata.data = buf;
-        fdata.size = (size_t)file_stat.m_uncomp_size;
+        fdata.size = (int)file_stat.m_uncomp_size;
         m_flist.insert(std::make_pair(file_stat.m_filename, fdata));
     }
 
