@@ -45,6 +45,7 @@ BOOL Cache::init()
     void* json = NULL;
     int size = 0;
     header_t *header = NULL;
+    BOOL parsed = TRUE;
 
     if (!PathFileExists(m_file_name)) // not exist
     {
@@ -80,7 +81,22 @@ BOOL Cache::init()
                 }
                 ((char*)json)[size] = 0;
             }
-            parser_json((const char *)json, header, &m_buffer, &m_size);
+            parser_json((const char *)json, header, &m_buffer, &m_size, &parsed);
+            if (!parsed)
+            {
+                // legacy binary cache or corrupt data: keep a copy before it
+                // gets overwritten with defaults on next save
+                TCHAR bak[MAX_PATH] = { 0 };
+                _tcscat(bak, m_file_name);
+                _tcscat(bak, _T(".bak"));
+                if (!PathFileExists(bak))
+                {
+                    SetFileAttributes(m_file_name, FILE_ATTRIBUTE_NORMAL);
+                    CopyFile(m_file_name, bak, TRUE);
+                    SetFileAttributes(m_file_name, FILE_ATTRIBUTE_HIDDEN);
+                    SetFileAttributes(bak, FILE_ATTRIBUTE_HIDDEN);
+                }
+            }
             free(json);
             free(header);
             return TRUE;

@@ -915,7 +915,7 @@ void create_json_free(char* json)
         free(json);
 }
 
-BOOL parser_json(const char* json, header_t* defhdr, void** data, int* size)
+BOOL parser_json(const char* json, header_t* defhdr, void** data, int* size, BOOL* parsed)
 {
     cJSON* root, *header, *items, *item;
     json_header_t* headerobj;
@@ -925,9 +925,14 @@ BOOL parser_json(const char* json, header_t* defhdr, void** data, int* size)
 
     *data = NULL;
     *size = 0;
+    if (parsed)
+        *parsed = TRUE;
     root = cJSON_Parse(json);
     if (!root)
     {
+        // not JSON at all (legacy binary cache or corrupt): report to caller
+        if (parsed)
+            *parsed = FALSE;
         *size = sizeof(header_t);
         *data = (header_t*)malloc(*size);
         memcpy(*data, defhdr, *size);

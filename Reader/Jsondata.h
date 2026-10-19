@@ -5,6 +5,6 @@
 
 char* create_json(header_t* data);
 void create_json_free(char* json);
-BOOL parser_json(const char* json, header_t* defhdr, void **data, int *size);
+BOOL parser_json(const char* json, header_t* defhdr, void **data, int *size, BOOL *parsed);
 
 #endif
