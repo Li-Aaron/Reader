@@ -14,10 +14,14 @@
 
 - [x] 6. **缓存版本迁移**：确认 JSON 解析本就字段级容忍（设置/进度跨版本保留）；补上"解析失败先备份 .cache.dat.bak 再重写"防丢数据（`16a2e7c`）
 - [x] 7. ~~**打开书加速**~~ → 不适用：上游 v2.0 已移除 MD5，改按文件名查缓存，无冗余哈希开销（过时注释已清理）
-- [ ] 8. **旧依赖库升级重编**：zlib/libxml2/libmobi 静态库为 2019-2022 产物，有已知 CVE；升级源码重编 x86+x64
-- [ ] 9. **拆分 Reader.cpp**：约 3700 行，对话框/菜单/翻页逻辑拆独立 cpp
-- [ ] 10. **定制点集中化**：私有改动（Ctrl+H、鼠标侧键、书签删除）分散在 Reader.cpp；抽成独立文件 + hook，降低未来 merge upstream 的冲突面
-- [ ] 11. **统一 x86/x64 工程配置**：Win32 `ConformanceMode=false` 而 x64 为 true；统一开启并清警告
+- [x] 8. **依赖库升级重编**（三个子提交）：
+  - `cc9786c` 移除 zlib 1.2.8（epub 改走工程内 miniz 路径，CVE 面直接清零）
+  - `ee761a0` libxml2 2.9.10 → 2.11.9（官方源码 nmake 重编 x86/x64 静态 /MT）
+  - `2c70d3e` libmobi 0.12 源码化编译（去预编译 /MD 库与 MSVCRT ignore hack；关键开关 `USE_MINIZ`+`USE_LIBXML2`+`USE_XMLWRITER`，缺最后一个会导致 mobi 打不开）
+- [x] 9. **拆分 Reader.cpp**（`953a97d`）：3680→~2860 行，新增 Globals/Dialogs/Gfx/WindowUtil/AutoPage 五个模块，全局变量 extern 化
+- [x] 10. **定制点集中化**（`b0af12c`）：AaronMod.cpp/.h 收纳 Ctrl+H、鼠标侧键、书签删除/列表渲染，Reader.cpp 只留一行钩子
+- [x] 11. **统一 x86/x64 工程配置**（`25449a2`）：Win32 开 ConformanceMode，全部 size_t 收窄警告清零（vendored libmobi 用按文件禁用）
+- [x] 12. **每本书独立显示设置**（`0206af1`）：item_t 存字体/前景/背景覆盖，文件列表右键切换"使用独立显示设置"，_update_data 在每次落盘时路由归属，退出恢复全局
 
 ## 长期方向（高成本）
 
@@ -28,10 +32,10 @@
 
 ## 清理项（顺手）
 
-- [ ] 17. 移除入库的 IDE 杂物：`Reader.aps`、`.vcxproj.user`
-- [ ] 18. 简化 `build-local.bat`：networkless 构建步骤（repstr 删宏）已无意义
-- [ ] 19. 清理 `ENABLE_TAG=0` 死代码（tagset.cpp 等编译但永不生效）
-- [ ] 20. `Upgrade` 线程退出用 `TerminateThread` 强杀（上游遗留）；改事件通知优雅退出
+- [x] 17. 移除入库的 IDE 杂物：`Reader.vcxproj.user`、`Reader/x64/Release/` 中间产物（`bd07797`）
+- [x] 18. 简化构建脚本：删作者机器专用的 `rebuild.bat`（networkless/repstr 流程已无意义），`build-local.bat` 头注释刷新（`bd07797`）
+- [x] 19. 清理 `ENABLE_TAG=0` 死代码：tagset.cpp/h、全部 #if ENABLE_TAG 块（保留活跃 else 分支）、资源与 ID（`fce74b8`）
+- [x] 20. ~~`Upgrade` 线程优雅退出~~ → 不适用：完全离线版 Upgrade 不参与编译（`#ifdef ENABLE_NETWORK` 保留源码级；若未来恢复版本检查再一并处理 TerminateThread）
 
 ## 已完成
 

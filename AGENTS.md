@@ -43,8 +43,9 @@ git diff --stat aaron upstream/master       # 总体差异（会包含我们删�
 - 输出：解决方案根目录 `Release\Reader.exe`（x86）、`x64\Release\Reader.exe`（x64）。
 - 依赖全部入库，无需额外安装：
   - `opensrc/cjson`（源码随主工程编译）
-  - `opensrc/zlib/lib`、`opensrc/libxml2/lib`、`opensrc/libmobi/lib`（预编译静态库；头文件在对应 `inc/`）
-  - `opensrc/miniz`（源码，epub/mobi 解压）
+  - `opensrc/libxml2/lib`（预编译静态库 2.11.9，win32/Makefile.msvc 重编，/MT；头文件在 `inc/`）
+  - `opensrc/miniz`（源码，epub 解压 + 为 libmobi 提供 crc32/uncompress 桥接）
+  - `opensrc/libmobi/src`（libmobi 0.12 源码随主工程编译，开关 `USE_MINIZ`+`USE_LIBXML2`+`USE_XMLWRITER`，不编其自带 miniz.c/xmlwriter.c）
   - 系统库：gdiplus、winhttp（代码内 `#pragma comment` 自动链接）
 - 关键宏：`ENABLE_NETWORK`（**当前未定义** = 完全离线版；Upgrade/版本检查代码不编译，`#ifndef ENABLE_NETWORK` 分支生效）；`ZLIB_WINAPI`、`LIBXML_STATIC`、`CJSON_HIDE_SYMBOLS`。
 - 预编译头：本项目不用 PCH，各 .cpp 自行 include（framework.h 为公共头）。
@@ -52,13 +53,19 @@ git diff --stat aaron upstream/master       # 总体差异（会包含我们删�
 - `tool/Upgrader` 是独立的 MFC 对话框小程序（下载新版本用），不在 Reader.sln 内；`tool/Upgrader.exe` 是预编译好的。
 - 上游分支（master / upstream）构建方式：`rebuild.bat`（原作者机器专用）、`build-local.bat`（vswhere 找 MSBuild，v143，出 x86+x64 并打包）、`.github/workflows/build-package.yml`（CI）。本分支同样可用 build-local.bat。
 
-## 架构（本分支，约 9000 行 C++）
+## 架构（本分支）
 
 ```
-Reader.cpp (WinMain + WndProc + 全部 On* 消息处理，程序主干)
- ├─ Book (基类, Book.cpp)        打开/关闭书、后台线程解析、MD5、章节表、书签
+Reader.cpp (WinMain + WndProc + 消息处理，程序主干，~2800行)
+ ├─ Globals.cpp        全部共享全局变量的唯一定义（Reader.h 中 extern）
+ ├─ Dialogs.cpp        About / Setting(基本设置) / JumpProgress(进度跳转) 对话框
+ ├─ Gfx.cpp            背景图、封面位图、loading.gif、资源图像
+ ├─ WindowUtil.cpp     标题栏、菜单工具、任务栏/托盘、DPI 树视图字体
+ ├─ AutoPage.cpp       自动翻页定时器控制
+ ├─ AaronMod.cpp/.h    本分支定制集中地：Ctrl+H、鼠标侧键4/5、书签删除/列表渲染
+ ├─ Book (基类, Book.cpp)        打开/关闭书、后台线程解析、章节表、书签
  │   ├─ TextBook (TextBook.cpp)  txt：编码探测 + 章节标题识别
- │   ├─ EpubBook (EpubBook.cpp)  epub：miniz/zlib 解压 + libxml2 解析 OPF/NCX/文本、封面
+ │   ├─ EpubBook (EpubBook.cpp)  epub：miniz 解压 + libxml2 解析 OPF/NCX/文本、封面
  │   ├─ MobiBook (MobiBook.cpp)  mobi：libmobi 解析
  │   └─ (Book 继承 Page)
  ├─ Page (Page.cpp)              v2.0 重写的分页排版引擎：行/页信息、翻页滚动、进度、封面
@@ -74,8 +81,9 @@ Reader.cpp (WinMain + WndProc + 全部 On* 消息处理，程序主干)
  └─ dump (dump.cpp)              崩溃 mini dump + TEST_MODEL 日志
 ```
 
-- 消息驱动：键盘/鼠标 → WndProc → KS_KeyDownProc(按键表) / 硬编码分支 → OnPageUp/OnHideBorder/OnFullScreen 等；翻页即移动 Page 当前位置，触发 `WM_PAINT` 重绘。
-- 打开书流程：`OnOpenBook` → 按扩展名 new TextBook/EpubBook/MobiBook → 后台线程 MD5 + 解析 → `WM_OPEN_BOOK` 回主线程 → Cache 恢复进度 → loading.gif 动画直到完成。
+- 消息驱动：键盘/鼠标 → WndProc → KS_KeyDownProc(按键表) / AM_KeyDown 等钩子 → OnPageUp/OnHideBorder/OnFullScreen 等；翻页即移动 Page 当前位置，触发 `WM_PAINT` 重绘。
+- 打开书流程：`OnOpenBook` → 按扩展名 new TextBook/EpubBook/MobiBook → 后台线程解析 → `WM_OPEN_BOOK` 回主线程 → Cache 恢复进度（含每本书独立显示设置的应用）→ loading.gif 动画直到完成。
+- 每本书独立显示设置：item_t 的 use_display/font/font_color/bg_color；`_update_data` 在每次落盘前把当前字体/颜色路由到 item 覆盖或全局快照，Exit 时恢复全局再写缓存。
 - 自定义消息：`WM_NEW_VERSION`/`WM_UPDATE_CHAPTERS`/`WM_OPEN_BOOK`/`WM_BOOK_EVENT`/`WM_SAVE_CACHE` 等（types.h）。
 - 菜单章节列表动态创建，命令 ID 范围见 types.h（`IDM_OPEN_BEGIN..END` 等）；目录 UI 是 TreeView 弹窗。
 
@@ -94,7 +102,7 @@ Reader.cpp (WinMain + WndProc + 全部 On* 消息处理，程序主干)
 | `Reader/Keyset.cpp` | 按键自定义系统 |
 | `Reader/types.h` | 公共类型、宏、自定义消息、cache 结构 |
 | `Reader/Reader_zh-cn.rc` | 编译进exe的中文资源（Reader.rc 为英文遗留，未编译） |
-| `opensrc/` | 第三方：cjson、miniz（源码）/ zlib、libxml2、libmobi（静态库） |
+| `opensrc/` | 第三方：cjson、miniz、libmobi（源码）/ libxml2（静态库） |
 | `tool/Upgrader/` | MFC 升级器子项目（上游已删，仅历史遗留说明） |
 
 ## 编码约定与注意事项
