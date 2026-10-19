@@ -34,6 +34,8 @@ typedef struct IUnknown IUnknown;
 
 #pragma comment(lib, "Msimg32.lib")
 #pragma comment(lib, "Version.lib")
+// libxml2 (nanohttp/nanoftp) needs winsock even for local parsing
+#pragma comment(lib, "Ws2_32.lib")
 
 #ifdef _DEBUG
 #pragma comment(lib, "libxml2_ad.lib")
