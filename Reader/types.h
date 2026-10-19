@@ -15,7 +15,6 @@
 #define DEFAULT_APP_WIDTH           (300)
 #define DEFAULT_APP_HEIGHT          (500)
 
-#define ENABLE_TAG                  0
 #define ENABLE_REALTIME_SAVE        1
 #define ENABLE_GLOBAL_SEARCH        1
 #define ENABLE_GLOBAL_KEY           0
@@ -28,7 +27,6 @@
 
 #define MAX_CHAPTER_LENGTH          256
 #define MAX_MARK_COUNT              256
-#define MAX_TAG_COUNT               256
 #define MAX_CUST_COLOR_COUNT        16
 #define MAX_KEYSET_COUNT            32
 
@@ -41,9 +39,6 @@
 #define IDM_ST_OPEN                 (IDM_OPEN_END + 2)
 #define IDM_ST_EXIT                 (IDM_OPEN_END + 3)
 #define IDM_MK_DEL                  (IDM_OPEN_END + 4)
-#define IDM_TS_EDIT                 (IDM_OPEN_END + 9)
-#define IDM_TS_ENABLE               (IDM_OPEN_END + 10)
-#define IDM_TS_DISABLE              (IDM_OPEN_END + 11)
 #define IDM_FI_DEL                  (IDM_OPEN_END + 12)
 #define IDM_FI_TOGGLE_DISPLAY       (IDM_OPEN_END + 13)
 
@@ -123,16 +118,6 @@ typedef struct chapter_rule_t
     WCHAR regex[256];
 } chapter_rule_t;
 
-#if ENABLE_TAG
-typedef struct tagitem_t
-{
-    BOOL enable;
-    LOGFONT font;
-    u32 font_color;
-    u32 bg_color;
-    WCHAR keyword[64];
-} tagitem_t;
-#endif
 
 typedef struct keyset_t
 {
@@ -183,10 +168,6 @@ typedef struct header_t
     keyset_t keyset[MAX_KEYSET_COUNT];
     chapter_rule_t chapter_rule;
     u32 cust_colors[MAX_CUST_COLOR_COUNT];
-#if ENABLE_TAG
-    int tag_count;
-    tagitem_t tags[MAX_TAG_COUNT];
-#endif
     int meun_font_follow;
 } header_t;
 

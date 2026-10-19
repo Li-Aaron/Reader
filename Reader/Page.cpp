@@ -14,10 +14,6 @@
 #define CHAPTER_PAGE            (m_header->chapter_page)
 #define LINE_NUM                (m_header->wheel_speed)
 #define LEFT_NUM                (m_header->left_line_count)
-#if ENABLE_TAG
-#define TAGS                    (m_header->tags)
-#define TAG_COUNT               (m_header->tag_count)
-#endif
 
 extern VOID Invalidate(HWND, BOOL, BOOL);
 extern void Save(HWND hWnd);
@@ -525,12 +521,7 @@ void Page::DrawAlphaText(HDC hdc, char_info_t* p_char, int x, int y, int h, alph
 
 void Page::BeginDraw(void)
 {
-#if ENABLE_TAG
-    int i;
-    m_dcList = (dc_info_t*)malloc(sizeof(dc_info_t) * (TAG_COUNT + 2));
-#else
     m_dcList = (dc_info_t*)malloc(sizeof(dc_info_t) * 2);
-#endif
     m_dcList[0].hFont = CreateFontIndirect(&m_header->font);
     m_dcList[0].BkColor = 0x0;
     m_dcList[0].TextColor = GetTextAlpha(m_header->font_color);
@@ -539,26 +530,13 @@ void Page::BeginDraw(void)
     m_dcList[1].BkColor = 0x0;
     m_dcList[1].TextColor = GetTextAlpha(m_header->font_color_title);
     m_dcList[1].BkMode = TRANSPARENT;
-#if ENABLE_TAG
-    for (i = 0; i < TAG_COUNT; i++)
-    {
-        m_dcList[i + 2].hFont = CreateFontIndirect(&TAGS[i].font);
-        m_dcList[i + 2].BkColor = TAGS[i].bg_color;
-        m_dcList[i + 2].TextColor = TAGS[i].font_color;
-        m_dcList[i + 2].BkMode = OPAQUE;
-    }
-#endif
     m_dcIndex = -1;
 }
 
 void Page::EndDraw(void)
 {
     int i;
-#if ENABLE_TAG
-    for (i = 0; i < TAG_COUNT + 2; i++)
-#else
     for (i = 0; i < 2; i++)
-#endif
     {
         DeleteObject(m_dcList[i].hFont);
     }
@@ -584,15 +562,6 @@ int Page::SelectFont(HDC hdc, int index, BOOL is_title)
 {
     int dc_index;
 
-#if ENABLE_TAG
-    dc_index = IsTag(index);
-    if (dc_index >= 0 && dc_index < TAG_COUNT)
-    {
-        dc_index += 2;
-        goto _completed;
-    }
-#endif
-    
     if (m_header->use_same_font)
     {
         dc_index = 0;
@@ -622,11 +591,7 @@ _completed:
 
 void Page::SelectFontByDcIndex(HDC hdc, int dc_idx)
 {
-#if ENABLE_TAG
-    if ((dc_idx >= 0 && dc_idx < TAG_COUNT+2) && m_dcIndex != dc_idx)
-#else
     if ((dc_idx >= 0 && dc_idx < 2) && m_dcIndex != dc_idx)
-#endif
     {
         m_dcIndex = dc_idx;
         SelectObject(hdc, m_dcList[m_dcIndex].hFont);
@@ -1456,29 +1421,6 @@ int Page::GetIndentWidth(HDC hdc)
     return sz.cx;
 }
 
-#if ENABLE_TAG
-int Page::IsTag(int index)
-{
-    int i, j;
-    int len, begin, end;
-    for (i = 0; i < TAG_COUNT; i++)
-    {
-        if (TAGS[i].enable && TAGS[i].keyword[0])
-        {
-            len = wcslen(TAGS[i].keyword);
-            begin = index - len + 1 > 0 ? index - len + 1 : 0;
-            end = index + 1/*+ len - 1 > m_TextLength ? m_TextLength : index + len - 1*/;
-
-            for (j = begin; j < end; j++)
-            {
-                if (wcsncmp(TAGS[i].keyword, m_Text + j, len) == 0)
-                    return i;
-            }
-        }
-    }
-    return -1;
-}
-#endif
 
 BOOL Page::IsCover(int index)
 {
@@ -1570,11 +1512,6 @@ void Page::TestCase(RECT* rc)
             p_char = &p_line->chars[j];
             ASSERT(p_char->cy <= p_line->cy);
             ASSERT(p_char->idx >= GetTextBeginIndex() && p_char->idx < m_Length);
-#if ENABLE_TAG
-            ASSERT(p_char->dc_idx >= 0 && p_char->dc_idx < TAG_COUNT+2);
-#else
-            ASSERT(p_char->dc_idx >= 0 && p_char->dc_idx < 2);
-#endif
             ASSERT(m_Text[p_char->idx] != L'\r' && m_Text[p_char->idx] != L'\n');
             w1 += p_char->cx;
             if (j < p_line->char_cnt - 1)

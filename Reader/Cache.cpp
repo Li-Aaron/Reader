@@ -1,4 +1,4 @@
-﻿#include "framework.h"
+#include "framework.h"
 #include "Cache.h"
 #include "Keyset.h"
 #include "Upgrade.h"
@@ -421,20 +421,6 @@ void Cache::default_header(header_t* header)
         header->cust_colors[i] = 0x00FFFFFF;
     }
     // default tags
-#if ENABLE_TAG
-    for (i = 0; i < MAX_TAG_COUNT; i++)
-    {
-        if (header->tags[i].font.lfHeight == 0)
-        {
-            memcpy(&header->tags[i].font, &lf, sizeof(lf));
-        }
-        if (header->tags[i].bg_color == 0)
-        {
-            header->tags[i].bg_color = 0x00FFFFFF;
-        }
-        //header->tags[i].enable = 0;
-    }
-#endif
 }
 
 BOOL Cache::add_mark(item_t *item, int value)

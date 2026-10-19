@@ -11,9 +11,6 @@
 #include "DPIAwareness.h"
 #include "DisplaySet.h"
 #include "AaronMod.h"
-#if ENABLE_TAG
-#include "tagset.h"
-#endif
 #include <stdio.h>
 #include <shlwapi.h>
 #include <CommDlg.h>
@@ -212,12 +209,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    // update for dpi
    UpdateRectForDpi(&_header->placement.rcNormalPosition);
    UpdateFontForDpi(&_header->font);
-#if ENABLE_TAG
-   for (int i = 0; i < MAX_TAG_COUNT; i++)
-   {
-       UpdateFontForDpi(&_header->tags[i].font);
-   }
-#endif
 
    // fixed rect exception bug.
 #if 0
@@ -377,15 +368,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case IDM_ADVSET:
             ADV_OpenDlg(hInst, hWnd, &(_header->chapter_rule));
             break;
-#if ENABLE_TAG
-        case IDM_TAGSET:
-            TS_OpenDlg();
-            if (_Book && !_Book->IsLoading())
-            {
-                _Book->ReDraw(hWnd);
-            }
-            break;
-#endif
         case IDM_DEFAULT:
             OnRestoreDefault(hWnd, message, wParam, lParam);
             break;
@@ -1369,12 +1351,6 @@ LRESULT OnRestoreDefault(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     UpdateRectForDpi(&_header->fs_placement.rcNormalPosition);
     UpdateFontForDpi(&_header->font);
 #if 0 // needn't
-#if ENABLE_TAG
-    for (int i = 0; i < MAX_TAG_COUNT; i++)
-    {
-        UpdateFontForDpi(hWnd, &_header->tags[i].font);
-    }
-#endif
 #endif
     SetWindowLongPtr(hWnd, GWL_STYLE, _header->style);
     SetWindowLongPtr(hWnd, GWL_EXSTYLE, _header->exstyle);
@@ -2580,9 +2556,6 @@ static void _update_data(HWND hWnd, BOOL keep_header, BOOL do_save)
 {
     RECT rcbak1 = {0}, rcbak2 = {0};
     LOGFONT fontbak = {0};
-#if ENABLE_TAG
-    LOGFONT tagfontbak[MAX_TAG_COUNT] = { 0 };
-#endif
 
     // backup
     GetWindowPlacement(hWnd, &_header->placement);
@@ -2596,13 +2569,6 @@ static void _update_data(HWND hWnd, BOOL keep_header, BOOL do_save)
     RestoreRectForDpi(&_header->placement.rcNormalPosition);
     RestoreRectForDpi(&_header->fs_placement.rcNormalPosition);
     RestoreFontForDpi(&_header->font);
-#if ENABLE_TAG
-    for (int i = 0; i < MAX_TAG_COUNT; i++)
-    {
-        tagfontbak[i] = _header->tags[i].font;
-        RestoreFontForDpi(&_header->tags[i].font);
-    }
-#endif
     _header->style = (DWORD)GetWindowLongPtr(hWnd, GWL_STYLE);
     _header->exstyle = (DWORD)GetWindowLongPtr(hWnd, GWL_EXSTYLE);
 
@@ -2637,12 +2603,6 @@ static void _update_data(HWND hWnd, BOOL keep_header, BOOL do_save)
         _header->placement.rcNormalPosition = rcbak1;
         _header->fs_placement.rcNormalPosition = rcbak2;
         _header->font = fontbak;
-#if ENABLE_TAG
-        for (int i = 0; i < MAX_TAG_COUNT; i++)
-        {
-            _header->tags[i].font = tagfontbak[i];
-        }
-#endif
     }
 }
 

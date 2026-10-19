@@ -86,14 +86,6 @@ void RemoveMenuById(HMENU hMenu, BOOL separator, int id)
 
 void RemoveMenus(HWND hWnd, BOOL redraw)
 {
-    HMENU hMenu;
-
-    hMenu = GetMenu(hWnd);
-
-#if !ENABLE_TAG
-    RemoveMenuById(hMenu, FALSE, IDM_TAGSET);
-#endif
-
     if (redraw)
         DrawMenuBar(hWnd);
 }

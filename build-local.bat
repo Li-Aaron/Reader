@@ -2,7 +2,10 @@
 rem ===========================================================================
 rem  build-local.bat  -  local build script (aaron branch)
 rem
-rem  Finds the installed Visual Studio / Windows SDK, builds Release x86 + x64`r`nrem  and packs them into publish\ (zip when no 7-Zip is installed).`r`nrem`r`nrem  Overrides:  set TOOLSET=v142     (default v143)
+rem  finds the installed Visual Studio / Windows SDK, builds Release x86 + x64
+rem  and packs them into publish\ (zip when no 7-Zip is installed).
+rem
+rem  Overrides:  set TOOLSET=v142     (default v143)
 rem ===========================================================================
 setlocal enabledelayedexpansion
 set "work_dir=%~dp0"

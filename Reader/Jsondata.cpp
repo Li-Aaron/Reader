@@ -343,58 +343,6 @@ public:
     }
 };
 
-#if ENABLE_TAG
-class json_tagitem_t
-{
-    cJSON* enable;
-    json_font_t* font;
-    cJSON* font_color;
-    cJSON* bg_color;
-    cJSON* keyword;
-public:
-    json_tagitem_t(cJSON* parent, tagitem_t* data)
-    {
-        cJSON* item;
-        item = cJSON_CreateObject();
-        enable = cJSON_AddNumberToObject(parent, "enable", data->enable);
-        font_color = cJSON_AddULongToObject(parent, "font_color", data->font_color);
-        bg_color = cJSON_AddULongToObject(parent, "bg_color", data->bg_color);
-        keyword = cJSON_AddStringToObject(parent, "keyword", Utf16ToUtf8(data->keyword));
-        font = new json_font_t(item, &(data->font));
-        cJSON_AddItemToObject(parent, "font", item);
-    }
-    json_tagitem_t(cJSON* parent) // for json parser
-        : font(NULL)
-    {
-        cJSON* item;
-        item = cJSON_GetObjectItem(parent, "font");
-        enable = cJSON_GetObjectItem(parent, "enable");
-        font_color = cJSON_GetObjectItem(parent, "font_color");
-        bg_color = cJSON_GetObjectItem(parent, "bg_color");
-        keyword = cJSON_GetObjectItem(parent, "keyword");
-        if (item)
-            font = new json_font_t(item);
-    }
-    ~json_tagitem_t()
-    {
-        if (font)
-            delete font;
-    }
-    void GetData(tagitem_t* data)
-    {
-        if (enable)
-            data->enable = enable->valueint;
-        if (font_color)
-            data->font_color = *((u32*)&font_color->valueint);
-        if (bg_color)
-            data->bg_color = *((u32*)&bg_color->valueint);
-        if (keyword)
-            wcscpy(data->keyword, Utf8ToUtf16(keyword->valuestring));
-        if (font)
-            font->GetData(&(data->font));
-    }
-};
-#endif
 
 class json_header_t
 {
@@ -440,10 +388,6 @@ class json_header_t
     json_font_t* font_title;
     json_bg_image_t* bg_image;
     json_chapter_rule_t* chapter_rule;
-#if ENABLE_TAG
-    cJSON* tag_count;
-    json_tagitem_t* tags[MAX_TAG_COUNT];
-#endif
 public:
     json_header_t(cJSON* parent, header_t* data)
     {
@@ -534,17 +478,6 @@ public:
         chapter_rule = new json_chapter_rule_t(item, &(data->chapter_rule));
         cJSON_AddItemToObject(parent, "chapter_rule", item);
 
-#if ENABLE_TAG
-        memset(tags, 0, sizeof(json_tagitem_t*) * MAX_TAG_COUNT);
-        tag_count = cJSON_AddNumberToObject(parent, "tag_count", data->tag_count);
-        array = cJSON_AddArrayToObject(parent, "tags");
-        for (i = 0; i < data->tag_count; i++)
-        {
-            item = cJSON_CreateObject();
-            tags[i] = new json_tagitem_t(item, &(data->tags[i]));
-            cJSON_AddItemToArray(array, item);
-        }
-#endif
     }
     json_header_t(cJSON* parent) // for json parser
         : placement(NULL)
@@ -640,21 +573,6 @@ public:
         if (item)
             chapter_rule = new json_chapter_rule_t(item);
 
-#if ENABLE_TAG
-        tag_count = cJSON_GetObjectItem(parent, "tag_count");
-        memset(tags, 0, sizeof(json_tagitem_t*) * MAX_TAG_COUNT);
-        array = cJSON_GetObjectItem(parent, "tags");
-        if (array)
-        {
-            size = cJSON_GetArraySize(array);
-            for (i = 0; i < size; i++)
-            {
-                item = cJSON_GetArrayItem(array, i);
-                if (item)
-                    tags[i] = new json_tagitem_t(item);
-            }
-        }
-#endif
     }
     ~json_header_t()
     {
@@ -681,13 +599,6 @@ public:
             if (keyset[i])
                 delete keyset[i];
         }
-#if ENABLE_TAG
-        for (i = 0; i < MAX_TAG_COUNT; i++)
-        {
-            if (tags[i])
-                delete tags[i];
-        }
-#endif
     }
     void GetData(header_t* data)
     {
@@ -796,15 +707,6 @@ public:
         if (chapter_rule)
             chapter_rule->GetData(&(data->chapter_rule));
 
-#if ENABLE_TAG
-        if (tag_count)
-            data->tag_count = tag_count->valueint;
-        for (i = 0; i < data->tag_count; i++)
-        {
-            if (tags[i])
-                tags[i]->GetData(&(data->tags[i]));
-        }
-#endif
     }
 };
 

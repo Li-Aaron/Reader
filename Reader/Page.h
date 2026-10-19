@@ -110,9 +110,6 @@ protected:
     int  GetMaxPageLength(HDC hdc, int w, int h);
     int  GetIndentWidth(HDC hdc);
 
-#if ENABLE_TAG
-    int  IsTag(int index);
-#endif
     BOOL IsCover(int index);
     BOOL IsTitle(int index);
     BOOL IsNewLine(wchar_t c);
@@ -147,5 +144,4 @@ private:
     int m_ChapterStart;     // for CHAPTER_PAGE
     int m_ChapterLength;    // CHAPTER_PAGE
 };
-
 #endif

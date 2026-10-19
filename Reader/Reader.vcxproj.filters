@@ -60,9 +60,6 @@
     <ClInclude Include="Page.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="tagset.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="TextBook.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -135,9 +132,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Page.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="tagset.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="TextBook.cpp">
