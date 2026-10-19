@@ -2410,6 +2410,61 @@ LRESULT OnUpdateChapters(HWND hWnd)
     return 0;
 }
 
+static void _mark_display_text(TCHAR *buf, int bufsize, int pos)
+{
+    const wchar_t *text = _Book->GetText();
+    int textlen = _Book->GetTextLength();
+    chapters_t *chs = _Book->GetChapters();
+    const wchar_t *title = NULL;
+    TCHAR tmp[600];
+    int p, start, linelen, i;
+    size_t n;
+
+    buf[0] = 0;
+    if (!text || pos < 0 || pos >= textlen)
+        return;
+
+    // find the chapter containing pos (last chapter with index <= pos)
+    if (chs)
+    {
+        for (i = 0; i < (int)chs->size(); i++)
+        {
+            if ((*chs)[i].index <= pos)
+                title = (*chs)[i].title.c_str();
+            else
+                break;
+        }
+    }
+
+    // excerpt: first non-empty line at/after pos, capped
+    p = pos;
+    while (p < textlen && (text[p] == L'\r' || text[p] == L'\n'))
+        p++;
+    start = p;
+    while (p < textlen && text[p] != L'\r' && text[p] != L'\n' && (p - start) < 120)
+        p++;
+    linelen = p - start;
+
+    if (title && *title
+        && linelen > 0 && (int)wcslen(title) == linelen
+        && 0 == wcsncmp(title, text + start, linelen))
+    {
+        // mark sits at the chapter head, excerpt is the title itself
+        title = NULL;
+    }
+
+    n = 0;
+    if (title && *title)
+        n += _sntprintf(tmp + n, 599 - n, _T("%s | "), title);
+    if (linelen > 0)
+        n += _sntprintf(tmp + n, 599 - n, _T("%.*s"), linelen, text + start);
+    if (textlen > 0)
+        _sntprintf(tmp + n, 600 - n, _T(" (%d%%)"), pos * 100 / textlen);
+
+    _tcsncpy(buf, tmp, bufsize - 1);
+    buf[bufsize - 1] = 0;
+}
+
 LRESULT OnUpdateBookMark(HWND hWnd)
 {
     const int MAX_MARK_TEXT = 256;
@@ -2418,7 +2473,6 @@ LRESULT OnUpdateBookMark(HWND hWnd)
     HTREEITEM hPrev = (HTREEITEM)TVI_FIRST;
     int i;
     TCHAR szText[MAX_MARK_TEXT] = {0};
-    int len;
 
     TreeView_DeleteAllItems(_hTreeMark);
     if (_Book && !_Book->IsLoading() && _item)
@@ -2427,9 +2481,7 @@ LRESULT OnUpdateBookMark(HWND hWnd)
 
         for (i=0; i<_item->mark_size; i++)
         {
-            len = _item->mark[i] + (MAX_MARK_TEXT - 1) > _Book->GetTextLength() ? _Book->GetTextLength() - _item->mark[i] : (MAX_MARK_TEXT - 1);
-            memcpy(szText, _Book->GetText()+_item->mark[i], sizeof(TCHAR)*len);
-            szText[len] = 0;
+            _mark_display_text(szText, MAX_MARK_TEXT, _item->mark[i]);
 
             tvi.pszText = szText; 
             tvi.cchTextMax = MAX_MARK_TEXT;
