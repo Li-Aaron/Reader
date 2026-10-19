@@ -842,7 +842,7 @@ end:
                 //一个part，src经常是part00000.html#0000047473这样的形式，数字是偏移量
                 sepidx = itnav->second->src.find("#");
                 offsetlen = itnav->second->src.size();
-                int refidx = std::stoi(itnav->second->src.substr(sepidx+1, offsetlen - sepidx-1)) * idx_ratio;
+                int refidx = (int)(std::stoi(itnav->second->src.substr(sepidx+1, offsetlen - sepidx-1)) * idx_ratio);
                 
                 int pos = 0, idx = 0;
                 while((idx = buff.find(title, pos)) > 0)  //一般会有三次匹配，头尾都是目录，中间是正文，取第二次的位置；如果多于三次，取第三次的位置
