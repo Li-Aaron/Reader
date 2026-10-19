@@ -207,6 +207,11 @@
     <ClCompile Include="zlib_cdecl_bridge.c" />
     <ClCompile Include="Advset.cpp" />
     <ClCompile Include="Book.cpp" />
+    <ClCompile Include="AutoPage.cpp" />
+    <ClCompile Include="Dialogs.cpp" />
+    <ClCompile Include="Globals.cpp" />
+    <ClCompile Include="Gfx.cpp" />
+    <ClCompile Include="WindowUtil.cpp" />
     <ClCompile Include="Cache.cpp" />
     <ClCompile Include="DisplaySet.cpp" />
     <ClCompile Include="DPIAwareness.cpp" />

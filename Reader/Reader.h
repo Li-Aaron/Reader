@@ -12,6 +12,8 @@
 #include <map>
 #include <shellapi.h>
 
+#define MAX_LOADSTRING              256
+
 typedef struct loading_data_t
 {
     BOOL enable;
@@ -22,28 +24,35 @@ typedef struct loading_data_t
     HGLOBAL hMemory;
 } loading_data_t;
 
-Cache               _Cache(CACHE_FILE_NAME);
-header_t*           _header                 = NULL;
-item_t*             _item                   = NULL;
-HWND                _hFindDlg               = NULL;
-HWND                _hTreeView              = NULL;
-HWND                _hTreeMark              = NULL;
-UINT                _uFindReplaceMsg        = 0;
-window_info_t       _WndInfo                = { 0 };
-BOOL                _IsAutoPage             = FALSE;
+// Globals: defined once in Globals.cpp, shared across Reader/Dialogs/Gfx/
+// WindowUtil/AutoPage translation units
+extern Cache             _Cache;
+extern header_t*         _header;
+extern item_t*           _item;
+extern HWND              _hFindDlg;
+extern HWND              _hTreeView;
+extern HWND              _hTreeMark;
+extern UINT              _uFindReplaceMsg;
+extern window_info_t     _WndInfo;
+extern BOOL              _IsAutoPage;
 #ifdef ENABLE_NETWORK
-Upgrade             _Upgrade;
+extern Upgrade           _Upgrade;
 #endif
-Book *              _Book                   = NULL;
-loading_data_t *    _loading                = NULL;
-HHOOK               _hMouseHook             = NULL;
+extern Book *            _Book;
+extern loading_data_t *  _loading;
+extern HHOOK             _hMouseHook;
 #if ENABLE_GLOBAL_KEY
-HHOOK               _hKeyboardHook          = NULL;
+extern HHOOK             _hKeyboardHook;
 #endif
-HWND                _hWnd                   = NULL;
-NOTIFYICONDATA      _nid                    = { 0 };
-BYTE                _textAlpha              = 0xFF;
-BOOL                _menuInvalid            = FALSE;
+extern HWND              _hWnd;
+extern NOTIFYICONDATA    _nid;
+extern BYTE              _textAlpha;
+extern BOOL              _menuInvalid;
+// app strings / instance (defined in Globals.cpp as well)
+extern HINSTANCE         hInst;
+extern TCHAR             szTitle[];
+extern TCHAR             szWindowClass[];
+extern TCHAR             szStatusClass[];
 
 
 LRESULT             OnCreate(HWND);

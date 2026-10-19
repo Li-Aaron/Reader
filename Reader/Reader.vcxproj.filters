@@ -91,6 +91,21 @@
     </ClCompile>
     <ClCompile Include="Book.cpp">
       <Filter>Source Files</Filter>
+    <ClCompile Include="AutoPage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Dialogs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Globals.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Gfx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowUtil.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     </ClCompile>
     <ClCompile Include="Cache.cpp">
       <Filter>Source Files</Filter>
