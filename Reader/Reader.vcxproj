@@ -86,7 +86,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;CJSON_HIDE_SYMBOLS;LIBXML_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;CJSON_HIDE_SYMBOLS;LIBXML_STATIC;USE_MINIZ;USE_XMLWRITER;USE_LIBXML2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <AdditionalIncludeDirectories>..\opensrc\cjson;..\opensrc\libxml2\inc;..\opensrc\miniz;..\opensrc\libmobi\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -106,7 +106,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;CJSON_HIDE_SYMBOLS;LIBXML_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;CJSON_HIDE_SYMBOLS;LIBXML_STATIC;USE_MINIZ;USE_XMLWRITER;USE_LIBXML2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <AdditionalIncludeDirectories>..\opensrc\cjson;..\opensrc\libxml2\inc;..\opensrc\miniz;..\opensrc\libmobi\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -126,7 +126,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;CJSON_HIDE_SYMBOLS;LIBXML_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;CJSON_HIDE_SYMBOLS;LIBXML_STATIC;USE_MINIZ;USE_XMLWRITER;USE_LIBXML2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>..\opensrc\cjson;..\opensrc\libxml2\inc;..\opensrc\miniz;..\opensrc\libmobi\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -146,7 +146,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;CJSON_HIDE_SYMBOLS;LIBXML_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;CJSON_HIDE_SYMBOLS;LIBXML_STATIC;USE_MINIZ;USE_XMLWRITER;USE_LIBXML2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>..\opensrc\cjson;..\opensrc\libxml2\inc;..\opensrc\miniz;..\opensrc\libmobi\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -189,6 +189,21 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\opensrc\cjson\cJSON.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\buffer.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\compression.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\debug.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\encryption.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\index.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\memory.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\meta.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\opf.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\parse_rawml.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\randombytes.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\read.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\sha1.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\structure.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\util.c" />
+    <ClCompile Include="..\opensrc\libmobi\src\write.c" />
     <ClCompile Include="zlib_cdecl_bridge.c" />
     <ClCompile Include="Advset.cpp" />
     <ClCompile Include="Book.cpp" />
@@ -223,23 +238,14 @@
     <None Include="picker.cur" />
   </ItemGroup>
   <!--
-    Fixes required to build the published sources with a current toolset:
     1) all sources are UTF-8 without BOM and contain Chinese comments; without
        /source-charset:utf-8 a GBK (cp936) compiler swallows the line following
-       such a comment and MobiBook.h loses the manifests/spines/navpoints
-       members of mobi_t.
-    2) opensrc/libmobi/libmobi*.lib was built with /MD (it carries
-       /DEFAULTLIB:MSVCRT), while this project uses /MT; ignoring that default
-       library keeps the static CRT and avoids
-       "msvcrt.lib(chandler4gs.obj) : error LNK2001: __except_handler4_common".
+       such a comment.
   -->
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalOptions>/source-charset:utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <Link>
-      <IgnoreSpecificDefaultLibraries>MSVCRT;MSVCRTD;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-    </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

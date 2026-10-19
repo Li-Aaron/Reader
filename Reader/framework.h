@@ -37,12 +37,12 @@ typedef struct IUnknown IUnknown;
 // libxml2 (nanohttp/nanoftp) needs winsock even for local parsing
 #pragma comment(lib, "Ws2_32.lib")
 
+// libmobi and cjson are compiled from source within the project;
+// libxml2 remains a prebuilt static lib
 #ifdef _DEBUG
 #pragma comment(lib, "libxml2_ad.lib")
-#pragma comment(lib, "libmobid.lib")
 #else
 #pragma comment(lib, "libxml2_a.lib")
-#pragma comment(lib, "libmobi.lib")
 #endif
 
 
