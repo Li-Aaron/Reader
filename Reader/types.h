@@ -44,6 +44,8 @@
 #define IDM_TS_EDIT                 (IDM_OPEN_END + 9)
 #define IDM_TS_ENABLE               (IDM_OPEN_END + 10)
 #define IDM_TS_DISABLE              (IDM_OPEN_END + 11)
+#define IDM_FI_DEL                  (IDM_OPEN_END + 12)
+#define IDM_FI_TOGGLE_DISPLAY       (IDM_OPEN_END + 13)
 
 #ifdef ENABLE_NETWORK
 #define WM_NEW_VERSION              (WM_USER + 100)
@@ -76,6 +78,12 @@ typedef struct item_t
     int mark_size;
     int mark[MAX_MARK_COUNT]; // book mark
     int is_new;
+    // per-book display override (aaron): font/colors used instead of the
+    // global ones when use_display is set
+    int use_display;
+    LOGFONT font;
+    u32 font_color;
+    u32 bg_color;
 } item_t;
 
 typedef enum bg_image_mode_t

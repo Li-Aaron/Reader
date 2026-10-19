@@ -46,6 +46,11 @@ INT_PTR CALLBACK    UpgradeProc(HWND, UINT, WPARAM, LPARAM);
 static void _free_resource(HWND hWnd);
 static void _update_data(HWND hWnd, BOOL keep_header, BOOL do_save);
 
+// pristine global display, kept apart from per-book overrides (aaron)
+static LOGFONT s_font_global = { 0 };
+static u32 s_font_color_global = 0x00ffffff;
+static u32 s_bg_color_global = 0x00ffffff;
+
 
 int APIENTRY _tWinMain(HINSTANCE hInstance,
                      HINSTANCE hPrevInstance,
@@ -553,30 +558,66 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (wmId >= IDM_OPEN_BEGIN && wmId <= IDM_OPEN_END)
         {
             int item_id = wmId - IDM_OPEN_BEGIN;
-            if (IDYES == MessageBoxFmt_(hWnd, IDS_WARN, MB_ICONINFORMATION | MB_YESNO, IDS_DELETE_FILE_CFM, _Cache.get_item(item_id)->file_name))
+            item_t* ctx_item = _Cache.get_item(item_id);
+            HMENU hPop = CreatePopupMenu();
+            POINT cur;
+            int cmd;
+
+            if (!hPop || !ctx_item)
+                break;
+            GetCursorPos(&cur);
+            InsertMenu(hPop, (UINT)-1, MF_BYPOSITION | MF_STRING, IDM_FI_DEL, _T("移出列表"));
+            InsertMenu(hPop, (UINT)-1, MF_BYPOSITION | MF_STRING | (ctx_item->use_display ? MF_CHECKED : 0), IDM_FI_TOGGLE_DISPLAY, _T("使用独立显示设置"));
+            SetForegroundWindow(hWnd);
+            cmd = TrackPopupMenu(hPop, TPM_RETURNCMD | TPM_RIGHTBUTTON, cur.x, cur.y, 0, hWnd, NULL);
+            DestroyMenu(hPop);
+
+            if (IDM_FI_DEL == cmd)
             {
-                _Cache.delete_item(item_id);
-                OnUpdateMenu(hWnd);
-                if (item_id == 0 && _Book)
+                if (IDYES == MessageBoxFmt_(hWnd, IDS_WARN, MB_ICONINFORMATION | MB_YESNO, IDS_DELETE_FILE_CFM, ctx_item->file_name))
                 {
-                    // open the last file
-                    if (_header->item_count > 0)
+                    _Cache.delete_item(item_id);
+                    OnUpdateMenu(hWnd);
+                    if (item_id == 0 && _Book)
                     {
-                        item_t* item = _Cache.get_item(0);
-                        OnOpenBook(hWnd, item->file_name, TRUE);
-                    }
-                    else
-                    {
-                        if (_Book)
+                        // open the last file
+                        if (_header->item_count > 0)
                         {
-                            delete _Book;
-                            _Book = NULL;
+                            item_t* item = _Cache.get_item(0);
+                            OnOpenBook(hWnd, item->file_name, TRUE);
                         }
-                        PostMessage(hWnd, WM_UPDATE_CHAPTERS, 0, NULL);
-                        Invalidate(hWnd, TRUE, FALSE);
+                        else
+                        {
+                            if (_Book)
+                            {
+                                delete _Book;
+                                _Book = NULL;
+                            }
+                            PostMessage(hWnd, WM_UPDATE_CHAPTERS, 0, NULL);
+                            Invalidate(hWnd, TRUE, FALSE);
+                        }
                     }
                 }
-                break;
+            }
+            else if (IDM_FI_TOGGLE_DISPLAY == cmd)
+            {
+                ctx_item->use_display = !ctx_item->use_display;
+                if (ctx_item->use_display)
+                {
+                    // capture the current look as this book's override
+                    ctx_item->font = _header->font;
+                    ctx_item->font_color = _header->font_color;
+                    ctx_item->bg_color = _header->bg_color;
+                }
+                else if (_Book && _item == ctx_item && !_Book->IsLoading())
+                {
+                    // back to the global look for the open book
+                    _header->font = s_font_global;
+                    _header->font_color = s_font_color_global;
+                    _header->bg_color = s_bg_color_global;
+                    _Book->ReDraw(hWnd);
+                }
+                Save(hWnd);
             }
             break;
         }
@@ -2187,6 +2228,20 @@ LRESULT OnOpenBookResult(HWND hWnd, BOOL result)
     // open item
     _item = _Cache.open_item(item->id);
 
+    // apply per-book display override (or restore the global look)
+    if (_item->use_display)
+    {
+        _header->font = _item->font;
+        _header->font_color = _item->font_color;
+        _header->bg_color = _item->bg_color;
+    }
+    else
+    {
+        _header->font = s_font_global;
+        _header->font_color = s_font_color_global;
+        _header->bg_color = s_bg_color_global;
+    }
+
     // set param
     _Book->Init(&_item->index, _header);
     _Book->SetChapterRule(&(_header->chapter_rule));
@@ -2425,6 +2480,12 @@ BOOL Init(void)
 
     _header = _Cache.get_header();
 
+    // snapshot the pristine global display (font/colors); per-book
+    // overrides are applied on open and restored before saving
+    s_font_global = _header->font;
+    s_font_color_global = _header->font_color;
+    s_bg_color_global = _header->bg_color;
+
     // delete not exist items
     for (int i=0; i<_header->item_count; i++)
     {
@@ -2451,6 +2512,21 @@ void Exit(void)
     {
         delete _Book;
         _Book = NULL;
+    }
+
+    // sync the live display into the current override (if any) and restore
+    // the pristine globals, so the cache keeps per-book and global looks apart
+    if (_header)
+    {
+        if (_item && _item->use_display)
+        {
+            _item->font = _header->font;
+            _item->font_color = _header->font_color;
+            _item->bg_color = _header->bg_color;
+        }
+        _header->font = s_font_global;
+        _header->font_color = s_font_color_global;
+        _header->bg_color = s_bg_color_global;
     }
 
     if (!_Cache.exit())
@@ -2530,11 +2606,30 @@ static void _update_data(HWND hWnd, BOOL keep_header, BOOL do_save)
     _header->style = (DWORD)GetWindowLongPtr(hWnd, GWL_STYLE);
     _header->exstyle = (DWORD)GetWindowLongPtr(hWnd, GWL_EXSTYLE);
 
+    // per-book display (aaron): route font/colors to the right owner before
+    // the cache write - live values go into the item override while the
+    // header temporarily carries the pristine global look
+    if (_item && _item->use_display)
+    {
+        _item->font = _header->font;
+        _item->font_color = _header->font_color;
+        _item->bg_color = _header->bg_color;
+        _header->font = s_font_global;
+        _header->font_color = s_font_color_global;
+        _header->bg_color = s_bg_color_global;
+    }
+    else
+    {
+        s_font_global = _header->font;
+        s_font_color_global = _header->font_color;
+        s_bg_color_global = _header->bg_color;
+    }
+
     // save
     if (do_save)
     {
         _Cache.save();
-    }    
+    }
 
     // restore
     if (keep_header)

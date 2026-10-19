@@ -816,6 +816,10 @@ class json_item_t
     cJSON* mark_size;
     cJSON* mark;
     cJSON* is_new;
+    cJSON* use_display;
+    cJSON* font_color;
+    cJSON* bg_color;
+    json_font_t* font;
 public:
     json_item_t(cJSON* parent, item_t* data)
     {
@@ -827,22 +831,41 @@ public:
         file_name = cJSON_AddStringToObject(parent, "file_name", Utf16ToUtf8(data->file_name));
         mark_size = cJSON_AddNumberToObject(parent, "mark_size", data->mark_size);
         is_new = cJSON_AddNumberToObject(parent, "is_new", data->is_new);
-        
+
         mark = cJSON_AddArrayToObject(parent, "mark");
         for (i = 0; i < data->mark_size; i++)
         {
             item = cJSON_CreateNumber(data->mark[i]);
             cJSON_AddItemToArray(mark, item);
         }
+
+        use_display = cJSON_AddNumberToObject(parent, "use_display", data->use_display);
+        font_color = cJSON_AddULongToObject(parent, "font_color", data->font_color);
+        bg_color = cJSON_AddULongToObject(parent, "bg_color", data->bg_color);
+        item = cJSON_CreateObject();
+        font = new json_font_t(item, &data->font);
+        cJSON_AddItemToObject(parent, "font", item);
     }
     json_item_t(cJSON* parent) // for json parser
     {
+        cJSON* item;
+
         id = cJSON_GetObjectItem(parent, "id");
         index = cJSON_GetObjectItem(parent, "index");
         file_name = cJSON_GetObjectItem(parent, "file_name");
         mark_size = cJSON_GetObjectItem(parent, "mark_size");
         mark = cJSON_GetObjectItem(parent, "mark");
         is_new = cJSON_GetObjectItem(parent, "is_new");
+        use_display = cJSON_GetObjectItem(parent, "use_display");
+        font_color = cJSON_GetObjectItem(parent, "font_color");
+        bg_color = cJSON_GetObjectItem(parent, "bg_color");
+        item = cJSON_GetObjectItem(parent, "font");
+        font = item ? new json_font_t(item) : NULL;
+    }
+    ~json_item_t()
+    {
+        if (font)
+            delete font;
     }
     void GetData(item_t* data)
     {
@@ -871,6 +894,14 @@ public:
         }
         if (is_new)
             data->is_new = is_new->valueint;
+        if (use_display)
+            data->use_display = use_display->valueint;
+        if (font_color)
+            data->font_color = *((u32*)&font_color->valueint);
+        if (bg_color)
+            data->bg_color = *((u32*)&bg_color->valueint);
+        if (font)
+            font->GetData(&data->font);
     }
 };
 
