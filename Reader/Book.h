@@ -22,9 +22,7 @@ typedef enum book_type_t
     book_unknown,
     book_text,
     book_epub,
-    book_mobi,
-    book_online,
-    book_web
+    book_mobi
 } book_type_t;
 
 class Book;

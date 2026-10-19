@@ -1,4 +1,4 @@
-#include "framework.h"
+﻿#include "framework.h"
 #include "Cache.h"
 #include "Keyset.h"
 #include "Upgrade.h"

@@ -2,17 +2,23 @@
 #include "Upgrade.h"
 #include "cJSON.h"
 #include "Utils.h"
-#include "HtmlParser.h"
 #include <process.h>
 #include <time.h>
+#include <winhttp.h>
+
+#pragma comment(lib, "winhttp.lib")
+
+#define USER_AGENT      (L"User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36")
 
 
 Upgrade::Upgrade(void)
     : m_IngoreVersion(NULL)
     , m_ChkTime(NULL)
+    , m_proxy(NULL)
     , m_cb(NULL)
     , m_param(NULL)
-    , m_hReq(NULL)
+    , m_hThread(NULL)
+    , m_bForceKill(FALSE)
 {
     m_VersionInfo.version.clear();
     m_VersionInfo.url.clear();
@@ -24,6 +30,11 @@ Upgrade::Upgrade(void)
 Upgrade::~Upgrade(void)
 {
     CancelRequest();
+}
+
+void Upgrade::SetProxy(proxy_t *proxy)
+{
+    m_proxy = proxy;
 }
 
 void Upgrade::SetIngoreVersion(TCHAR *ingorev)
@@ -38,8 +49,7 @@ void Upgrade::SetCheckVerTime(u32 *chktime)
 
 void Upgrade::Check(upgrade_callback_t cb, void *param)
 {
-    const char* url = "https://raw.githubusercontent.com/binbyu/Reader/master/version.json";
-    request_t req;
+    unsigned threadId;
     u32 curtime;
 
     // last check version time
@@ -55,15 +65,7 @@ void Upgrade::Check(upgrade_callback_t cb, void *param)
     m_cb = cb;
     m_param = param;
     CancelRequest();
-
-    memset(&req, 0, sizeof(request_t));
-    req.method = GET;
-    req.url = (char *)url;
-    req.completer = GetVersionCompleter;
-    req.param1 = this;
-    req.param2 = NULL;
-
-    m_hReq = hapi_request(&req);
+    m_hThread = (HANDLE)_beginthreadex(NULL, 0, DoRequest, this, 0, &threadId);
 }
 
 json_item_data_t * Upgrade::GetVersionInfo(void)
@@ -73,9 +75,19 @@ json_item_data_t * Upgrade::GetVersionInfo(void)
 
 void Upgrade::CancelRequest(void)
 {
-    if (m_hReq)
-        hapi_cancel(m_hReq);
-    m_hReq = NULL;
+    if (m_hThread)
+    {
+        m_bForceKill = TRUE;
+        if (WAIT_TIMEOUT == WaitForSingleObject(m_hThread, 3000))
+        {
+            TerminateThread(m_hThread, 0);
+        }
+        if (m_hThread)
+        {
+            CloseHandle(m_hThread);
+            m_hThread = NULL;
+        }
+    }
 }
 
 int Upgrade::ParserJson(const char* json)
@@ -163,6 +175,10 @@ int Upgrade::vercmp(const wchar_t *v1, const wchar_t *v2)
 {
     unsigned int v1_1 = 0, v1_2 = 0, v1_3 = 0, v1_4 = 0;
     unsigned int v2_1 = 0, v2_2 = 0, v2_3 = 0, v2_4 = 0;
+
+    if (!v1) v1 = L"0.0.0.0";
+    if (!v2) v2 = L"0.0.0.0";
+
     swscanf(v1, L"%d.%d.%d.%d", &v1_1, &v1_2, &v1_3, &v1_4);
     swscanf(v2, L"%d.%d.%d.%d", &v2_1, &v2_2, &v2_3, &v2_4);
 
@@ -172,28 +188,181 @@ int Upgrade::vercmp(const wchar_t *v1, const wchar_t *v2)
     return num1 == num2 ? 0 : (num1 > num2 ? 1 : -1);
 }
 
-unsigned int Upgrade::GetVersionCompleter(request_result_t *result)
+unsigned __stdcall Upgrade::DoRequest(void* param)
 {
-    Upgrade *_this = (Upgrade *)result->param1;
+    const WCHAR* szURL = L"https://raw.githubusercontent.com/binbyu/Reader/master/version.json";
+    Upgrade* _this = (Upgrade*)param;
+    HINTERNET hSession = NULL;
+    HINTERNET hConnect = NULL;
+    HINTERNET hRequest = NULL;
+    WCHAR szHost[256] = { 0 };
+    WCHAR szProxy[256] = { 0 };
+    URL_COMPONENTS urlComp = { 0 };
+    WINHTTP_PROXY_INFO ProxyInfo = { 0 };
+    BOOL bResults = FALSE;
+    DWORD dwSize = 0;
+    DWORD dwDownloaded = 0;
+    DWORD dwFlags = 0;
+    char *data = NULL;
+    std::string json;
 
-    _this->m_hReq = NULL;
-    *_this->m_ChkTime = _time32(NULL);
+    ZeroMemory(&urlComp, sizeof(urlComp));
+    urlComp.dwStructSize = sizeof(urlComp);
+    urlComp.lpszHostName = szHost;
+    urlComp.dwHostNameLength = sizeof(szHost) / sizeof(szHost[0]);
+    urlComp.dwUrlPathLength = (DWORD)-1;
+    urlComp.dwSchemeLength = (DWORD)-1;
 
-    if (result->cancel)
-        return 1;
+    if (!WinHttpCrackUrl(szURL, 0, 0, &urlComp))
+        goto fail;
 
-    if (result->errno_ != succ)
-        return 1;
+    if (_this->m_bForceKill)
+        goto fail;
 
-    if (result->status_code != 200)
+    hSession = WinHttpOpen(USER_AGENT,
+        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+        WINHTTP_NO_PROXY_NAME,
+        WINHTTP_NO_PROXY_BYPASS,
+        0);
+    if (!hSession)
+        goto fail;
+
+    if (_this->m_bForceKill)
+        goto fail;
+
+    hConnect = WinHttpConnect(hSession, szHost,
+        urlComp.nPort, 0);
+    if (!hConnect)
+        goto fail;
+
+    if (_this->m_bForceKill)
+        goto fail;
+
+    hRequest = WinHttpOpenRequest(hConnect,
+        L"GET", urlComp.lpszUrlPath,
+        NULL, WINHTTP_NO_REFERER,
+        WINHTTP_DEFAULT_ACCEPT_TYPES,
+        INTERNET_SCHEME_HTTPS == urlComp.nScheme ? WINHTTP_FLAG_SECURE : 0);
+    if (!hRequest)
+        goto fail;
+
+    if (_this->m_bForceKill)
+        goto fail;
+
+    if (_this->m_proxy && _this->m_proxy->enable)
     {
-        return 1;
+        swprintf_s(szProxy, L"%s:%d", _this->m_proxy->addr, _this->m_proxy->port);
+        ProxyInfo.dwAccessType = WINHTTP_ACCESS_TYPE_NAMED_PROXY;
+        ProxyInfo.lpszProxy = szProxy;
+        ProxyInfo.lpszProxyBypass = (WCHAR*)L"";
+        WinHttpSetOption(hRequest,
+            WINHTTP_OPTION_PROXY,
+            &ProxyInfo,
+            sizeof(WINHTTP_PROXY_INFO));
+
+        if (_this->m_bForceKill)
+            goto fail;
+
+        WinHttpSetOption(hRequest,
+            WINHTTP_OPTION_PROXY_USERNAME,
+            (LPVOID)_this->m_proxy->user,
+            (int)wcslen(_this->m_proxy->user));
+
+        if (_this->m_bForceKill)
+            goto fail;
+
+        WinHttpSetOption(hRequest,
+            WINHTTP_OPTION_PROXY_PASSWORD,
+            (LPVOID)_this->m_proxy->pass,
+            (int)wcslen(_this->m_proxy->pass));
+
+        if (_this->m_bForceKill)
+            goto fail;
     }
 
-    if (result->body && result->bodylen > 0)
+    // ssl
+    dwFlags = SECURITY_FLAG_IGNORE_UNKNOWN_CA |
+        SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE |
+        SECURITY_FLAG_IGNORE_CERT_CN_INVALID |
+        SECURITY_FLAG_IGNORE_CERT_DATE_INVALID;
+    WinHttpSetOption(hRequest, WINHTTP_OPTION_SECURITY_FLAGS, &dwFlags, sizeof(dwFlags));
+    WinHttpSetOption(hRequest, WINHTTP_OPTION_CLIENT_CERT_CONTEXT, WINHTTP_NO_CLIENT_CERT_CONTEXT, 0);
+
+    if (_this->m_bForceKill)
+        goto fail;
+
+    bResults = WinHttpSendRequest(hRequest,
+        WINHTTP_NO_ADDITIONAL_HEADERS,
+        0, WINHTTP_NO_REQUEST_DATA, 0,
+        0, 0);
+    if (!bResults)
+        goto fail;
+
+    if (_this->m_bForceKill)
+        goto fail;
+
+    bResults = WinHttpReceiveResponse(hRequest, NULL);
+    if (!bResults)
+        goto fail;
+
+    if (_this->m_bForceKill)
+        goto fail;
+
+    do
     {
-        _this->ParserJson(result->body);
-    }
+        // Check for available data.
+        dwSize = 0;
+        if (!WinHttpQueryDataAvailable(hRequest, &dwSize))
+            goto fail;
+
+        if (_this->m_bForceKill)
+            goto fail;
+
+        // No more available data.
+        if (!dwSize)
+            break;
+
+        // Allocate space for the buffer.
+        data = (char *)malloc(dwSize);
+        if (!data)
+            goto fail;
+
+        // Read the Data.
+        if (!WinHttpReadData(hRequest, (LPVOID)data, dwSize, &dwDownloaded))
+            goto fail;
+        json.append((char*)data, dwSize);
+
+        // Free the memory allocated to the buffer.
+        free(data);
+        data = NULL;
+
+        if (_this->m_bForceKill)
+            goto fail;
+
+    } while (dwSize > 0);
+
+
+    if (_this->m_bForceKill)
+        goto fail;
+
+    // save check time
+    if (_this->m_ChkTime)
+        *_this->m_ChkTime = _time32(NULL);
+
+    _this->ParserJson(json.c_str());
+
+fail:
+    if (hRequest)
+        WinHttpCloseHandle(hRequest);
+    if (hConnect)
+        WinHttpCloseHandle(hConnect);
+    if (hSession)
+        WinHttpCloseHandle(hSession);
+    if (data)
+        free(data);
+
+    CloseHandle(_this->m_hThread);
+    _this->m_hThread = NULL;
     return 0;
 }
 

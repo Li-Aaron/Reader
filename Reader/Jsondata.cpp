@@ -435,140 +435,6 @@ public:
 };
 #endif
 
-class json_book_source_t
-{
-    cJSON* title;
-    cJSON* host;
-    cJSON* query_url;
-    cJSON* query_method;
-    cJSON* query_params;
-    cJSON* query_charset;
-    cJSON* book_name_xpath;
-    cJSON* book_mainpage_xpath;
-    cJSON* book_author_xpath;
-    cJSON* enable_chapter_page;
-    cJSON* chapter_page_xpath;
-    cJSON* chapter_title_xpath;
-    cJSON* chapter_url_xpath;
-    cJSON* enable_chapter_next;
-    cJSON* chapter_next_url_xpath;
-    cJSON* chapter_next_keyword_xpath;
-    cJSON* chapter_next_keyword;
-    cJSON* content_xpath;
-    cJSON* enable_content_next;
-    cJSON* content_next_url_xpath;
-    cJSON* content_next_keyword_xpath;
-    cJSON* content_next_keyword;
-    cJSON* content_filter_type;
-    cJSON* content_filter_keyword;
-public:
-    json_book_source_t(cJSON* parent, const book_source_t* data)
-    {
-        title = cJSON_AddStringToObject(parent, "title", Utf16ToUtf8(data->title));
-        host = cJSON_AddStringToObject(parent, "host", data->host);
-        query_url = cJSON_AddStringToObject(parent, "query_url", data->query_url);
-        query_method = cJSON_AddNumberToObject(parent, "query_method", data->query_method);
-        query_params = cJSON_AddStringToObject(parent, "query_params", data->query_params);
-        query_charset = cJSON_AddNumberToObject(parent, "query_charset", data->query_charset);
-        book_name_xpath = cJSON_AddStringToObject(parent, "book_name_xpath", data->book_name_xpath);
-        book_mainpage_xpath = cJSON_AddStringToObject(parent, "book_mainpage_xpath", data->book_mainpage_xpath);
-        book_author_xpath = cJSON_AddStringToObject(parent, "book_author_xpath", data->book_author_xpath);
-        enable_chapter_page = cJSON_AddNumberToObject(parent, "enable_chapter_page", data->enable_chapter_page);
-        chapter_page_xpath = cJSON_AddStringToObject(parent, "chapter_page_xpath", data->chapter_page_xpath);
-        chapter_title_xpath = cJSON_AddStringToObject(parent, "chapter_title_xpath", data->chapter_title_xpath);
-        chapter_url_xpath = cJSON_AddStringToObject(parent, "chapter_url_xpath", data->chapter_url_xpath);
-        enable_chapter_next = cJSON_AddNumberToObject(parent, "enable_chapter_next", data->enable_chapter_next);
-        chapter_next_url_xpath = cJSON_AddStringToObject(parent, "chapter_next_url_xpath", data->chapter_next_url_xpath);
-        chapter_next_keyword_xpath = cJSON_AddStringToObject(parent, "chapter_next_keyword_xpath", data->chapter_next_keyword_xpath);
-        chapter_next_keyword = cJSON_AddStringToObject(parent, "chapter_next_keyword", data->chapter_next_keyword);
-        content_xpath = cJSON_AddStringToObject(parent, "content_xpath", data->content_xpath);
-        enable_content_next = cJSON_AddNumberToObject(parent, "enable_content_next", data->enable_content_next);
-        content_next_url_xpath = cJSON_AddStringToObject(parent, "content_next_url_xpath", data->content_next_url_xpath);
-        content_next_keyword_xpath = cJSON_AddStringToObject(parent, "content_next_keyword_xpath", data->content_next_keyword_xpath);
-        content_next_keyword = cJSON_AddStringToObject(parent, "content_next_keyword", data->content_next_keyword);
-        content_filter_type = cJSON_AddNumberToObject(parent, "content_filter_type", data->content_filter_type);
-        content_filter_keyword = cJSON_AddStringToObject(parent, "content_filter_keyword", Utf16ToUtf8(data->content_filter_keyword));
-    }
-    json_book_source_t(cJSON* parent) // for json parser
-    {
-        title = cJSON_GetObjectItem(parent, "title");
-        host = cJSON_GetObjectItem(parent, "host");
-        query_url = cJSON_GetObjectItem(parent, "query_url");
-        query_method = cJSON_GetObjectItem(parent, "query_method");
-        query_params = cJSON_GetObjectItem(parent, "query_params");
-        query_charset = cJSON_GetObjectItem(parent, "query_charset");
-        book_name_xpath = cJSON_GetObjectItem(parent, "book_name_xpath");
-        book_mainpage_xpath = cJSON_GetObjectItem(parent, "book_mainpage_xpath");
-        book_author_xpath = cJSON_GetObjectItem(parent, "book_author_xpath");
-        enable_chapter_page = cJSON_GetObjectItem(parent, "enable_chapter_page");
-        chapter_page_xpath = cJSON_GetObjectItem(parent, "chapter_page_xpath");
-        chapter_title_xpath = cJSON_GetObjectItem(parent, "chapter_title_xpath");
-        chapter_url_xpath = cJSON_GetObjectItem(parent, "chapter_url_xpath");
-        enable_chapter_next = cJSON_GetObjectItem(parent, "enable_chapter_next");
-        chapter_next_url_xpath = cJSON_GetObjectItem(parent, "chapter_next_url_xpath");
-        chapter_next_keyword_xpath = cJSON_GetObjectItem(parent, "chapter_next_keyword_xpath");
-        chapter_next_keyword = cJSON_GetObjectItem(parent, "chapter_next_keyword");
-        content_xpath = cJSON_GetObjectItem(parent, "content_xpath");
-        enable_content_next = cJSON_GetObjectItem(parent, "enable_content_next");
-        content_next_url_xpath = cJSON_GetObjectItem(parent, "content_next_url_xpath");
-        content_next_keyword_xpath = cJSON_GetObjectItem(parent, "content_next_keyword_xpath");
-        content_next_keyword = cJSON_GetObjectItem(parent, "content_next_keyword");
-        content_filter_type = cJSON_GetObjectItem(parent, "content_filter_type");
-        content_filter_keyword = cJSON_GetObjectItem(parent, "content_filter_keyword");
-    }
-    void GetData(book_source_t* data)
-    {
-        if (title)
-            wcscpy(data->title, Utf8ToUtf16(title->valuestring));
-        if (host)
-            strcpy(data->host, host->valuestring);
-        if (query_url)
-            strcpy(data->query_url, query_url->valuestring);
-        if (query_method)
-            data->query_method = query_method->valueint;
-        if (query_params)
-            strcpy(data->query_params, query_params->valuestring);
-        if (query_charset)
-            data->query_charset = query_charset->valueint;
-        if (book_name_xpath)
-            strcpy(data->book_name_xpath, book_name_xpath->valuestring);
-        if (book_mainpage_xpath)
-            strcpy(data->book_mainpage_xpath, book_mainpage_xpath->valuestring);
-        if (book_author_xpath)
-            strcpy(data->book_author_xpath, book_author_xpath->valuestring);
-        if (enable_chapter_page)
-            data->enable_chapter_page = enable_chapter_page->valueint;
-        if (chapter_page_xpath)
-            strcpy(data->chapter_page_xpath, chapter_page_xpath->valuestring);
-        if (chapter_title_xpath)
-            strcpy(data->chapter_title_xpath, chapter_title_xpath->valuestring);
-        if (chapter_url_xpath)
-            strcpy(data->chapter_url_xpath, chapter_url_xpath->valuestring);
-        if (enable_chapter_next)
-            data->enable_chapter_next = enable_chapter_next->valueint;
-        if (chapter_next_url_xpath)
-            strcpy(data->chapter_next_url_xpath, chapter_next_url_xpath->valuestring);
-        if (chapter_next_keyword_xpath)
-            strcpy(data->chapter_next_keyword_xpath, chapter_next_keyword_xpath->valuestring);
-        if (chapter_next_keyword)
-            strcpy(data->chapter_next_keyword, chapter_next_keyword->valuestring);
-        if (content_xpath)
-            strcpy(data->content_xpath, content_xpath->valuestring);
-        if (enable_content_next)
-            data->enable_content_next = enable_content_next->valueint;
-        if (content_next_url_xpath)
-            strcpy(data->content_next_url_xpath, content_next_url_xpath->valuestring);
-        if (content_next_keyword_xpath)
-            strcpy(data->content_next_keyword_xpath, content_next_keyword_xpath->valuestring);
-        if (content_next_keyword)
-            strcpy(data->content_next_keyword, content_next_keyword->valuestring);
-        if (content_filter_type)
-            data->content_filter_type = content_filter_type->valueint;
-        if (content_filter_keyword)
-            wcscpy(data->content_filter_keyword, Utf8ToUtf16(content_filter_keyword->valuestring));
-    }
-};
-
 class json_header_t
 {
     cJSON* version;
@@ -618,8 +484,6 @@ class json_header_t
     cJSON* tag_count;
     json_tagitem_t* tags[MAX_TAG_COUNT];
 #endif
-    cJSON* book_source_count;
-    json_book_source_t* book_sources[MAX_BOOKSRC_COUNT];
 public:
     json_header_t(cJSON* parent, header_t* data)
     {
@@ -725,15 +589,6 @@ public:
             cJSON_AddItemToArray(array, item);
         }
 #endif
-        memset(book_sources, 0, sizeof(json_book_source_t*) * MAX_BOOKSRC_COUNT);
-        book_source_count = cJSON_AddNumberToObject(parent, "book_source_count", data->book_source_count);
-        array = cJSON_AddArrayToObject(parent, "book_sources");
-        for (i = 0; i < data->book_source_count; i++)
-        {
-            item = cJSON_CreateObject();
-            book_sources[i] = new json_book_source_t(item, &(data->book_sources[i]));
-            cJSON_AddItemToArray(array, item);
-        }
     }
     json_header_t(cJSON* parent) // for json parser
         : placement(NULL)
@@ -849,19 +704,6 @@ public:
             }
         }
 #endif
-        book_source_count = cJSON_GetObjectItem(parent, "book_source_count");
-        memset(book_sources, 0, sizeof(json_book_source_t*) * MAX_BOOKSRC_COUNT);
-        array = cJSON_GetObjectItem(parent, "book_sources");
-        if (array)
-        {
-            size = cJSON_GetArraySize(array);
-            for (i = 0; i < size; i++)
-            {
-                item = cJSON_GetArrayItem(array, i);
-                if (item)
-                    book_sources[i] = new json_book_source_t(item);
-            }
-        }
     }
     ~json_header_t()
     {
@@ -897,11 +739,6 @@ public:
                 delete tags[i];
         }
 #endif
-        for (i = 0; i < MAX_BOOKSRC_COUNT; i++)
-        {
-            if (book_sources[i])
-                delete book_sources[i];
-        }
     }
     void GetData(header_t* data)
     {
@@ -1021,13 +858,6 @@ public:
                 tags[i]->GetData(&(data->tags[i]));
         }
 #endif
-        if (book_source_count)
-            data->book_source_count = book_source_count->valueint;
-        for (i = 0; i < data->book_source_count; i++)
-        {
-            if (book_sources[i])
-                book_sources[i]->GetData(&(data->book_sources[i]));
-        }
     }
 };
 
@@ -1201,74 +1031,4 @@ BOOL parser_json(const char* json, header_t* defhdr, void** data, int* size)
     
     cJSON_Delete(root);
     return TRUE;
-}
-
-BOOL import_book_source(const char* json, book_source_t *bs, int* count)
-{
-    cJSON* root, * book_sources, * item;
-    json_book_source_t* json_bs;
-    int i;
-
-    root = cJSON_Parse(json);
-    if (!root)
-    {
-        return FALSE;
-    }
-
-    book_sources = cJSON_GetObjectItem(root, "book_sources");
-    if (!book_sources || cJSON_GetArraySize(book_sources) <= 0 || cJSON_GetArraySize(book_sources) > MAX_BOOKSRC_COUNT)
-    {
-        cJSON_Delete(root);
-        return FALSE;
-    }
-
-    *count = 0;
-    for (i = 0; i < cJSON_GetArraySize(book_sources); i++)
-    {
-        item = cJSON_GetArrayItem(book_sources, i);
-        if (item)
-        {
-            json_bs = new json_book_source_t(item);
-            json_bs->GetData(&(bs[i]));
-            (*count)++;
-            delete json_bs;
-        }   
-    }
-    cJSON_Delete(root);
-    return TRUE;
-}
-
-BOOL export_book_source(const book_source_t* bs, int count, char** json)
-{
-    cJSON* root, * book_sources, * item;
-    json_book_source_t* json_bs;
-    int i;
-
-    *json = NULL;
-    if (!bs || count < 0 || count > MAX_BOOKSRC_COUNT)
-    {
-        return FALSE;
-    }
-
-    root = cJSON_CreateObject();
-    book_sources = cJSON_AddArrayToObject(root, "book_sources");
-
-    for (i = 0; i < count; i++)
-    {
-        item = cJSON_CreateObject();
-        json_bs = new json_book_source_t(item, &(bs[i]));
-        cJSON_AddItemToArray(book_sources, item);
-        delete json_bs;
-    }
-
-    //*json = cJSON_PrintUnformatted(root);
-    *json = cJSON_Print(root);
-    cJSON_Delete(root);
-    return TRUE;
-}
-
-void export_book_source_free(char* json)
-{
-    if (json)
-        free(json);
 }

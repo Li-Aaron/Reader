@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
@@ -36,9 +36,6 @@
     <ClInclude Include="Book.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="BooksourceDlg.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Cache.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -57,19 +54,10 @@
     <ClInclude Include="EpubBook.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="HtmlParser.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Jsondata.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Keyset.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="OnlineBook.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="OnlineDlg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Page.h">
@@ -90,12 +78,6 @@
     <ClInclude Include="Utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="WebBook.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="WebDlg.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\opensrc\cjson\cJSON.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -111,9 +93,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Book.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="BooksourceDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Cache.cpp">
@@ -134,19 +113,10 @@
     <ClCompile Include="EpubBook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="HtmlParser.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Jsondata.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Keyset.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="OnlineBook.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="OnlineDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Page.cpp">
@@ -162,12 +132,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Utils.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="WebBook.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="WebDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\opensrc\cjson\cJSON.c">
