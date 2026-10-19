@@ -2722,7 +2722,7 @@ void OnOpenBook(HWND hWnd, TCHAR *filename, BOOL forced)
         return;
     }
 
-    // check md5, is already exist
+    // check if already exist in file list (by file name)
     item = _Cache.find_item(szFileName);
     if (item)
     {
